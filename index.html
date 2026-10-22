@@ -55,7 +55,39 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .logo{width:46px;height:46px;border-radius:50%;flex:none;background:#0D0B0A;display:grid;place-items:center;overflow:hidden}
 .logo img{width:100%;height:100%;object-fit:cover}
 .logo svg{width:100%;height:100%}
-.brand{min-width:0}
+.brand{min-width:0;flex:1}
+.esc-btn{border:1.5px solid #F2E6D3;background:none;border-radius:99px;padding:7px 14px;font-weight:700;font-size:.85rem;color:#F2E6D3;white-space:nowrap;flex:none}
+.esc-btn:hover,.esc-btn[aria-current]{background:#F2E6D3;color:#0D0B0A}
+@media (max-width:380px){.esc-btn{padding:6px 10px;font-size:.78rem}}
+.esc-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.esc-tabs{display:flex;background:var(--sunk);border-radius:99px;padding:4px}
+.esc-tabs button{border:0;background:none;border-radius:99px;padding:8px 16px;font-weight:700}
+.esc-tabs button[aria-pressed="true"]{background:var(--red);color:var(--on-red)}
+.esc-bar select{width:auto}
+.esc-res{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.95rem}
+.esc-res b{color:var(--red-2)}
+.esc-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.esc-head img{height:64px;width:auto;border-radius:8px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.cal .wd{background:var(--red);color:var(--on-red);font-weight:700;text-align:center;padding:8px 4px;font-size:.8rem}
+.cal .d{min-height:92px;border-top:1px solid var(--line);border-left:1px solid var(--line);padding:6px 7px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.cal .d:nth-child(7n+1){border-left:0}
+.cal .n{align-self:flex-end;font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.cal .wl{display:none}
+.cal .out{background:var(--sunk);opacity:.5}
+.cal .seg{background:var(--sunk)}.cal .seg .p{color:var(--muted);font-weight:600}
+.cal .p{color:var(--red-2);font-weight:700;font-size:.78rem;text-transform:uppercase;border-radius:5px;padding:0 3px;margin:0 -3px;overflow-wrap:anywhere}
+.cal .fer{font-style:italic;font-weight:600}
+.cal.f .d:not(.has){opacity:.45}
+.cal .me{background:var(--warn-bg);color:var(--warn)}
+.esc-notas{font-size:.88rem;color:var(--muted);margin:0;padding-left:18px}
+@media (max-width:760px){
+ .cal{grid-template-columns:1fr}.cal .wd,.cal .out,.cal .vz{display:none}
+ .cal .d{min-height:0;border-left:0;flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:10px 12px}
+ .cal .n{order:-1;align-self:auto;min-width:28px;font-weight:700;color:var(--ink)}
+ .cal .wl{display:inline;order:-2;font-weight:700;color:var(--muted);font-size:.78rem;text-transform:uppercase;width:34px}
+ .cal.f .d:not(.has){display:none}
+}
 .brand b{font-family:var(--display);font-weight:400;font-size:1.2rem;letter-spacing:.01em;display:block;line-height:1.1}
 .brand small{font-size:.72rem;text-transform:uppercase;letter-spacing:.14em;opacity:.85;font-weight:700}
 
@@ -212,6 +244,7 @@ textarea.inp{min-height:84px;resize:vertical}
   <div class="hdr-in">
     <div class="logo" id="hdrLogo"></div>
     <div class="brand"><b>Matuto da China</b><small>Checklists da casa</small></div>
+    <button class="esc-btn" id="escBtn">Escala de Folgas</button>
   </div>
 </header>
 
@@ -313,7 +346,8 @@ function render(){
   const app=$("#app");
   const sec={hoje:"hoje",check:"hoje",rel:view.de||"hoje",hist:"hist",ajustes:"ajustes",editar:"ajustes"}[view.n];
   document.querySelectorAll("[data-nav]").forEach(b=>{if(b.dataset.nav===sec)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
-  app.innerHTML=({hoje:vHoje,check:vCheck,rel:vRel,hist:vHist,ajustes:vAjustes,editar:vEditar})[view.n]();
+  app.innerHTML=({hoje:vHoje,check:vCheck,rel:vRel,hist:vHist,ajustes:vAjustes,editar:vEditar,escala:vEscala})[view.n]();
+  $("#escBtn").toggleAttribute("aria-current",view.n==="escala");
   pintarLogo();
 }
 
@@ -528,6 +562,38 @@ $("#logoFile").addEventListener("change",ev=>{
       cfg.logo=cv.toDataURL("image/jpeg",.85);salvar();render();toast("Logo atualizada")};img.src=rd.result};
   rd.readAsDataURL(f);ev.target.value="";
 });
+
+/* ---------- Escala de folgas ---------- */
+const ESCALA={"Outubro 2026":{"ano":2026,"mes":10,"folgas":{"1":["Maria","Vania"],"2":["Jaciane","Rayssa"],"3":["Aline","Juliete"],"4":["Gabriel","Eva","Andrea"],"6":["Sávio","Jaciane"],"7":["Priscilla","Rayssa"],"8":["Maria"],"9":["Aline"],"10":["Juliete","Vania"],"11":["Vania","Sávio","Maria"],"13":["Gabriel","Aline"],"14":["Priscilla"],"15":["Eva"],"16":["Jaciane","Andrea"],"17":["Juliete"],"18":["Juliete","Jaciane"],"20":["Sávio","Eva"],"21":["Edilza","Andrea"],"22":["Gabriel","Aline"],"23":["Maria","Priscilla"],"24":["Vania"],"25":["Aline","Priscilla"],"27":["Gabriel","Andrea"],"28":["Maria","Sávio"],"29":["Edilza"],"30":["Jaciane","Vania"],"31":["Juliete","Eva"]},"ferias":{"Rayssa":[15,31]},"notas":["Dias 02 e 09: Juliete à noite","Rayssa de férias a partir de 15/10"]},"Novembro 2026":{"ano":2026,"mes":11,"folgas":{"1":["Maria","Sávio","Edilza"],"3":["Jaciane","Eva"],"4":["Aline","Juliete"],"5":["Gabriel","Andrea"],"6":["Vania","Priscilla"],"8":["Jaciane","Juliete","Gabriel"],"10":["Andrea","Priscilla"],"11":["Eva","Sávio"],"12":["Maria","Vania"],"13":["Aline","Edilza"],"15":["Vania","Eva","Andrea"],"17":["Rayssa","Edilza"],"18":["Maria","Juliete"],"19":["Gabriel","Priscilla"],"20":["Jaciane","Sávio"],"21":["Aline"],"22":["Rayssa","Aline","Priscilla"],"24":["Maria","Jaciane"],"25":["Vania","Gabriel"],"26":["Juliete","Sávio"],"27":["Andrea","Edilza"],"28":["Eva"],"29":["Maria","Sávio","Edilza"]},"ferias":{"Rayssa":[1,13]},"notas":["Rayssa de férias até 13/11 (retorno 14/11) — confirmar","Feriados: 02/11 (segunda, fechado), 15/11 (domingo), 20/11 (sexta)"]}};
+const NOMES=["Maria","Vania","Jaciane","Rayssa","Aline","Juliete","Gabriel","Eva","Andrea","Sávio","Priscilla","Edilza"];
+const MESES=Object.keys(ESCALA);
+let escMes=(()=>{const h=new Date();return MESES.find(k=>ESCALA[k].ano===h.getFullYear()&&ESCALA[k].mes===h.getMonth()+1)||MESES[MESES.length-1]})();
+let escQuem=LS.get("mdc_escquem","");
+function vEscala(){
+  const m=ESCALA[escMes],y=m.ano,mo=m.mes-1,dias=new Date(y,mo+1,0).getDate(),ini=new Date(y,mo,1).getDay();
+  const WD=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"],WS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  let c='<div class="cal'+(escQuem?" f":"")+'">'+WD.map(w=>'<div class="wd">'+w+'</div>').join(""),tot=0,dom=[];
+  for(let i=0;i<ini;i++)c+='<div class="d out"></div>';
+  for(let d=1;d<=dias;d++){
+    const wd=(ini+d-1)%7,L=m.folgas[d]||[];let fer="";
+    for(const f in m.ferias){if(d===m.ferias[f][0]&&L.indexOf(f)<0)fer+='<span class="p fer">Férias '+esc(f)+'</span>'}
+    const has=escQuem&&L.indexOf(escQuem)>=0;if(has){tot++;if(wd===0)dom.push(d)}
+    const body=wd===1?'<span class="p">Fechado</span>':L.map(n=>'<span class="p'+(n===escQuem?" me":"")+'">'+esc(n)+'</span>').join("")+fer;
+    c+='<div class="d'+(wd===1?" seg":"")+(has?" has":"")+(!L.length&&!fer&&wd!==1?" vz":"")+'"><span class="wl">'+WS[wd]+'</span><span class="n">'+d+'</span>'+body+'</div>';
+  }
+  const resto=(7-(ini+dias)%7)%7;for(let i=0;i<resto;i++)c+='<div class="d out"></div>';
+  c+='</div>';
+  const res=escQuem?'<b>'+esc(escQuem)+'</b>: '+tot+' folga'+(tot===1?"":"s")+' em '+escMes.split(" ")[0].toLowerCase()+' além das segundas'+(dom.length?' · domingo'+(dom.length>1?"s ":" ")+dom.join(" e "):' · <b>sem domingo neste mês</b>')+'.'
+    :'Escala 5x2: segunda é fechado (folga de todos) e cada pessoa tem mais 1 folga na semana, com pelo menos 1 domingo no mês. Escolha seu nome para ver só as suas folgas.';
+  return '<button class="back" data-ir="hoje">‹ Hoje</button>'+
+    '<div class="esc-head"><img src="'+LOGO_FULL+'" alt="Matuto da China"><div><p class="eyebrow">Escala de folgas</p><h1>Calendário · '+esc(escMes)+'</h1></div></div>'+
+    '<div class="esc-bar"><div class="esc-tabs">'+MESES.map(k=>'<button data-mes="'+k+'" aria-pressed="'+(k===escMes)+'">'+k.split(" ")[0]+'</button>').join("")+'</div>'+
+    '<select class="inp" id="escSel" aria-label="Ver folgas de"><option value="">Todos</option>'+NOMES.map(n=>'<option'+(n===escQuem?" selected":"")+'>'+n+'</option>').join("")+'</select></div>'+
+    '<div class="esc-res">'+res+'</div>'+c+'<ul class="esc-notas">'+(m.notas||[]).map(n=>'<li>'+esc(n)+'</li>').join("")+'</ul>';
+}
+$("#escBtn").addEventListener("click",()=>ir({n:"escala"}));
+app.addEventListener("click",ev=>{const b=ev.target.closest("[data-mes]");if(b){escMes=b.dataset.mes;render()}});
+app.addEventListener("change",ev=>{if(ev.target.id==="escSel"){escQuem=ev.target.value;LS.set("mdc_escquem",escQuem);render()}});
 
 render();
 })();
