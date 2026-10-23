@@ -140,6 +140,11 @@ details.av summary{font-weight:700;cursor:pointer}details.av p{margin:.5em 0;fon
 .cal.f .d:not(.has){opacity:.45}.cal .me{background:var(--warn-bg);color:var(--warn)}
 .esc-res{background:var(--info-bg);border-radius:12px;padding:12px 14px;font-size:.95rem}.esc-res b{color:var(--red-2)}
 .esc-notas{font-size:.88rem;color:var(--muted);margin:0;padding-left:18px}
+.cal.ed .d:not(.out){cursor:pointer}.cal.ed .d:not(.out):hover{outline:2px solid var(--gold);outline-offset:-2px}.cal .sel{box-shadow:inset 0 0 0 3px var(--red-2)}
+.tog{border:1.5px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 12px;font-weight:700;font-size:.85rem}
+.tog[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:var(--on-red)}.tog.cp[aria-pressed="true"]{background:var(--info);border-color:var(--info);color:#fff}
+.warns{margin:0;padding-left:18px;font-size:.88rem}
+.pfeito{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.pfeito .ok{color:var(--ok);font-weight:700;font-size:.8rem;white-space:nowrap}
 @media (max-width:760px){
  .cal{grid-template-columns:1fr}.cal .wd,.cal .out,.cal .vz{display:none}
  .cal .d{min-height:0;border-left:0;flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:10px 12px}
@@ -212,6 +217,7 @@ const AVISOS=["Lave as mãos; use uniforme limpo e cabelos protegidos. Separe ut
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
 let cfg=LS.get("mdc_cfg",null);
 if(!cfg||!cfg.v||cfg.v<2){const old=cfg||{};cfg={v:2,pin:old.pin||"1207",fone:old.fone||"",ultimoResp:old.ultimoResp||"",funcionarios:FUNC_PADRAO.slice(),listas:listasPadrao(),producao:producaoPadrao(),limpeza:{},terceiros:terceirosPadrao()};cfg.limpeza["2026-10"]=limpezaPadrao()}
+if(!cfg.escala)cfg.escala=JSON.parse(JSON.stringify(ESCALA));
 let runs=LS.get("mdc_runs",{}),prods=LS.get("mdc_prod",{}),limp=LS.get("mdc_limp",{});
 function salvar(){const a=LS.set("mdc_cfg",cfg),b=LS.set("mdc_runs",runs),c=LS.set("mdc_prod",prods),d=LS.set("mdc_limp",limp);if(!(a&&b&&c&&d))toast("Não foi possível salvar neste aparelho")}
 salvar();
@@ -243,7 +249,7 @@ const waLink=txt=>"https://wa.me/"+(cfg.fone||"").replace(/\D/g,"")+"?text="+enc
 const WA_SVG='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3z"/></svg>';
 
 /* ================= Escala ================= */
-function escalaDia(s){const k=mesKey(s),m=ESCALA[k],d=String(parse(s).getDate());if(!m)return null;
+function escalaDia(s){const k=mesKey(s),m=cfg.escala[k],d=String(parse(s).getDate());if(!m)return null;
  const fer=[];for(const f in m.ferias){const r=m.ferias[f];if(+d>=r[0]&&+d<=r[1])fer.push(f)}
  return{folga:(m.folgas[d]||[]),comp:((m.compensa||{})[d]||[]),ferias:fer,feriado:(m.feriados||{})[d]||"",seg:parse(s).getDay()===1}}
 function statusPessoa(n,s){const e=escalaDia(s);if(!e)return"";if(e.seg)return"Fechado";if(e.ferias.indexOf(n)>=0)return"Férias";if(e.folga.indexOf(n)>=0)return"Folga";if(e.comp.indexOf(n)>=0)return"Folga (comp.)";return"Trabalha"}
@@ -263,7 +269,7 @@ function chipRun(r){if(!r||r.status==="novo")return'<span class="chip pend"><spa
 /* ================= Produção ================= */
 function obterProd(dia){if(!prods[dia])prods[dia]={setores:{fria:{resp:"Edilza/Jaciane",itens:{}},quente:{resp:"Juliete/Maria",itens:{}}},ocorr:"",conf:"",fim:null};return prods[dia]}
 function prodItens(p,s){return(p.lista&&p.lista[s])||cfg.producao[s]}
-function prodCont(p){let tot=0,ok=0,plan=0;PSET.forEach(s=>prodItens(p,s.id).forEach(it=>{const e=p.setores[s.id].itens[it.id]||{};if(e.plan||e.sem){plan++;tot++;if(e.sem||(e.prod&&String(e.prod).trim()))ok++}}));return{tot,ok,plan}}
+function prodCont(p){let tot=0,ok=0,plan=0;PSET.forEach(s=>prodItens(p,s.id).forEach(it=>{const e=p.setores[s.id].itens[it.id]||{};if(e.plan||e.sem||e.feito){plan++;tot++;if(e.sem||e.feito)ok++}}));return{tot,ok,plan}}
 
 /* ================= Limpeza ================= */
 function cronograma(k){if(!cfg.limpeza[k]){const ks=Object.keys(cfg.limpeza).sort().filter(x=>x<k);const base=ks.length?cfg.limpeza[ks[ks.length-1]]:limpezaPadrao();cfg.limpeza[k]=JSON.parse(JSON.stringify(base)).map(t=>(t.id=uid(),t));salvar()}return cfg.limpeza[k]}
@@ -273,10 +279,10 @@ function diasAte(s){return Math.round((parse(s)-parse(diaOp()))/864e5)}
 
 /* ================= Navegação ================= */
 let view={n:"hoje"},quem="";
-function ir(v){view=v;render();window.scrollTo(0,0)}
+function ir(v){if(v.n==="escala"&&view.n!=="escala"){v.edit=false}view=v;render();window.scrollTo(0,0)}
 document.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>ir({n:b.dataset.nav})));
 $("#escBtn").addEventListener("click",()=>ir({n:"escala"}));
-const SEC={hoje:"hoje",check:"hoje",rel:"hoje",prod:"prod",prel:"prod",limp:"limp",hist:"hist",ajustes:"ajustes",editar:"ajustes",edlimp:"ajustes",edterc:"ajustes",edfunc:"ajustes"};
+const SEC={hoje:"hoje",check:"hoje",rel:"hoje",prod:"prod",prel:"prod",limp:"limp",hist:"hist",ajustes:"ajustes",editar:"ajustes",edlimp:"limp",edterc:"limp",edfunc:"ajustes"};
 function render(){const sec=SEC[view.n]||(view.n==="rel"?view.de:"");
  document.querySelectorAll("[data-nav]").forEach(b=>{if(b.dataset.nav===sec)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
  $("#escBtn").toggleAttribute("aria-current",view.n==="escala");
@@ -305,7 +311,7 @@ V.hoje=function(){const dia=diaOp(),e=escalaDia(dia),w=semanaDoMes(dia),k=mesKey
   h+='</article>'});
  h+='</div><div class="grid g2">';
  h+='<article class="card"><header><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h16M6 20V10l4 3V9l4 3V7l4 3v10"/></svg></span><h2>Ordem de produção</h2></header>'+
-  PSET.map(s=>{const sp=p&&p.setores[s.id];let n=0,o=0;if(sp)prodItens(p,s.id).forEach(it=>{const x=sp.itens[it.id]||{};if(x.plan||x.sem){n++;if(x.sem||(x.prod&&String(x.prod).trim()))o++}});
+  PSET.map(s=>{const sp=p&&p.setores[s.id];let n=0,o=0;if(sp)prodItens(p,s.id).forEach(it=>{const x=sp.itens[it.id]||{};if(x.plan||x.sem||x.feito){n++;if(x.sem||x.feito)o++}});
    return'<button class="line" data-goprod="'+s.id+'"><span class="lab">'+s.nome+'<small>'+esc(sp?sp.resp:(s.id==="fria"?"Edilza/Jaciane":"Juliete/Maria"))+'</small></span>'+(p&&p.fim?'<span class="chip ok">✓ '+hhmm(p.fim)+'</span>':n?'<span class="chip and num">'+o+'/'+n+'</span>':'<span class="chip pend">Sem planejamento</span>')+'</button>'}).join("")+'</article>';
  h+='<article class="card"><header><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 3 8 13M6 13h8l2 8H4z"/></svg></span><h2>Limpeza da '+w+'ª semana</h2><span class="chip '+(tlok===tl.length?"ok":"and")+' num">'+tlok+'/'+tl.length+'</span></header>'+
   (tl.length?tl.map(t=>{const x=limp[lk(k,t.id,w)];return'<button class="line" data-golimp><span class="lab">'+esc(t.area)+'<small>'+esc(t.resp[w-1])+' · '+esc(t.freq)+'</small></span>'+(x?'<span class="chip ok">✓ '+esc(x.quem.split(" ")[0])+'</span>':'<span class="chip pend">Pendente</span>')+'</button>'}).join(""):'<div class="body muted">Nenhuma limpeza nesta semana.</div>')+'</article>';
@@ -314,11 +320,11 @@ V.hoje=function(){const dia=diaOp(),e=escalaDia(dia),w=semanaDoMes(dia),k=mesKey
  if(al.length)h+='<div class="note warn"><b>Serviços terceirizados</b>'+al.map(t=>{const d=diasAte(proxData(t));return esc(t.nome)+(d<0?' atrasado há '+(-d)+' dia(s)':d===0?' vence hoje':' vence em '+d+' dia(s)')+' ('+dataCurta(proxData(t))+')'}).join(" · ")+'</div>';
  return h};
 function cardPessoa(n,dia,w,k){const st=statusPessoa(n,dia);const tl=cronograma(k).filter(t=>(t.resp[w-1]||"").indexOf(n)>=0||t.resp[w-1]==="Toda equipe");
- const p=prods[dia];let pi=[];if(p)PSET.forEach(s=>prodItens(p,s.id).forEach(it=>{const x=p.setores[s.id].itens[it.id];if(x&&x.resp===n&&(x.plan||x.prod))pi.push({t:it.t,x})}));
+ const p=prods[dia];let pi=[];if(p)PSET.forEach(s=>prodItens(p,s.id).forEach(it=>{const x=p.setores[s.id].itens[it.id];if(x&&(x.resp===n||(x.feito&&x.feito.quem===n))&&(x.plan||x.prod||x.feito))pi.push({t:it.t,x})}));
  let prox="";for(let i=1;i<40&&!prox;i++){const d=addDias(dia,i),s=statusPessoa(n,d);if(s==="Folga"||s==="Folga (comp.)")prox=dataLonga(d)+(s==="Folga (comp.)"?" (compensação)":"")}
  return'<div class="card"><header><h2>Tarefas de '+esc(n)+'</h2><span class="chip '+(st==="Trabalha"?"ok":"info")+'">'+esc(st||"Sem escala")+'</span></header><div class="body">'+
  '<div><p class="eyebrow">Limpeza desta semana</p>'+(tl.length?'<div class="tags">'+tl.map(t=>'<span class="tag'+(limp[lk(k,t.id,w)]?" g":"")+'">'+esc(t.area)+(limp[lk(k,t.id,w)]?" ✓":"")+'</span>').join("")+'</div>':'<span class="muted small">Nenhuma</span>')+'</div>'+
- '<div><p class="eyebrow">Produção de hoje</p>'+(pi.length?'<div class="tags">'+pi.map(o=>'<span class="tag'+(o.x.prod?" g":"")+'">'+esc(o.t)+(o.x.plan?" · "+esc(o.x.plan):"")+'</span>').join("")+'</div>':'<span class="muted small">Nenhum item atribuído</span>')+'</div>'+
+ '<div><p class="eyebrow">Produção de hoje</p>'+(pi.length?'<div class="tags">'+pi.map(o=>'<span class="tag'+(o.x.feito?" g":"")+'">'+esc(o.t)+(o.x.plan?" · "+esc(o.x.plan):"")+(o.x.feito?" ✓":"")+'</span>').join("")+'</div>':'<span class="muted small">Nenhum item atribuído</span>')+'</div>'+
  '<div><p class="eyebrow">Próxima folga</p><span>'+(prox?esc(prox):'<span class="muted small">Escala ainda não lançada</span>')+'</span></div></div></div>'}
 
 V.check=function(){const r=runs[view.k],L=itensDe(r),c=contagem(r),pct=c.total?Math.round(c.feitos/c.total*100):0;
@@ -358,23 +364,27 @@ V.prod=function(){const dia=view.dia||diaOp(),s=view.s||"fria",p=obterProd(dia),
  '<div class="grid g2"><label class="field"><span>Responsável pelo setor</span><input class="inp" id="pResp" list="dlFunc" value="'+esc(sp.resp)+'"></label>'+
  '<div class="field"><span>Planejamento</span><div class="rowbtn"><button class="btn sm sec" data-pcopiar>Copiar planejado do dia anterior</button></div></div></div>'+
  '<datalist id="dlFunc">'+cfg.funcionarios.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist>'+
- '<p class="muted small" style="margin:0">Conferir estoque e validade. Informe a unidade (kg, g, L ou un). Toque em "—" nos itens sem produção.</p>'+
- '<div class="card scroll"><table class="tbl ptbl"><thead><tr><th>Insumo ou preparo</th><th>Planejado</th><th>Produzido</th><th>Responsável</th><th></th></tr></thead><tbody>'+
- L.map(it=>{const e=sp.itens[it.id]||{};const feito=e.prod&&String(e.prod).trim();return'<tr class="'+(e.sem?"sem":feito?"feito":"")+'"><td>'+esc(it.t)+'</td><td><input class="inp q" data-pq="plan|'+it.id+'" placeholder="ex. 2 kg" value="'+esc(e.plan||"")+'"'+(e.sem?" disabled":"")+'></td><td><input class="inp q" data-pq="prod|'+it.id+'" placeholder="—" value="'+esc(e.prod||"")+'"'+(e.sem?" disabled":"")+'></td><td><select class="inp" data-pr="'+it.id+'"'+(e.sem?" disabled":"")+'>'+optsFunc(e.resp)+'</select></td><td><button class="btn xs '+(e.sem?"pri":"ghost")+'" data-psem="'+it.id+'" title="Sem produção">—</button></td></tr>'}).join("")+'</tbody></table></div>'+
+ '<p class="muted small" style="margin:0">Conferir estoque e validade. Informe a unidade (kg, g, L ou un). Quem terminar um item toca em <b>Feito</b> e escolhe o nome. Toque em "—" nos itens sem produção.</p>'+
+ '<div class="card scroll"><table class="tbl ptbl"><thead><tr><th>Insumo ou preparo</th><th>Planejado</th><th>Produzido</th><th>Responsável</th><th>Feito por</th><th></th></tr></thead><tbody>'+
+ L.map(it=>{const e=sp.itens[it.id]||{};const feito=!!e.feito;return'<tr class="'+(e.sem?"sem":feito?"feito":"")+'"><td>'+esc(it.t)+'</td><td><input class="inp q" data-pq="plan|'+it.id+'" placeholder="ex. 2 kg" value="'+esc(e.plan||"")+'"'+(e.sem?" disabled":"")+'></td><td><input class="inp q" data-pq="prod|'+it.id+'" placeholder="—" value="'+esc(e.prod||"")+'"'+(e.sem?" disabled":"")+'></td><td><select class="inp" data-pr="'+it.id+'"'+(e.sem?" disabled":"")+'>'+optsFunc(e.resp)+'</select></td><td>'+celFeito(it,e)+'</td><td><button class="btn xs '+(e.sem?"pri":"ghost")+'" data-psem="'+it.id+'" title="Sem produção">—</button></td></tr>'}).join("")+'</tbody></table></div>'+
  '<details class="av"><summary>Avisos de segurança alimentar</summary>'+AVISOS.map(a=>'<p>'+esc(a)+'</p>').join("")+'</details>'+
  '<label class="field"><span>Ocorrências</span><textarea class="inp" id="pOcorr" placeholder="Faltou insumo, produto vencido, desvio de temperatura…">'+esc(p.ocorr)+'</textarea></label>'+
  '<div class="grid g2"><label class="field"><span>Conferido por</span><select class="inp" id="pConf">'+optsFunc(p.conf)+'</select></label><div class="field"><span>Andamento</span><div class="row"><b class="num">'+c.ok+' de '+c.tot+' itens planejados prontos</b></div></div></div>'+
  '<div id="pFim" class="stack"><button class="btn pri" data-pconcluir>Concluir e enviar relatório</button></div>';
  return h};
+function celFeito(it,e){if(e.sem)return'<span class="muted small">—</span>';
+ if(e.feito)return'<div class="pfeito"><span class="ok">✓ '+esc(e.feito.quem)+' · '+hhmm(e.feito.ts)+'</span><button class="btn xs ghost" data-pdesf="'+it.id+'">Desfazer</button></div>';
+ if(view.psign===it.id)return'<div class="sign" style="justify-content:flex-start"><select class="inp" id="pQuem">'+optsFunc(e.resp)+'</select><button class="btn xs pri" data-pok="'+it.id+'">OK</button></div>';
+ return'<button class="btn xs sec" data-pfeito="'+it.id+'">Feito</button>'}
 function textoProd(dia){const p=prods[dia];let s="*MATUTO DA CHINA*\n🍱 Ordem de produção · "+dataCurta(dia)+"\n";
  PSET.forEach(x=>{const sp=p.setores[x.id];const L=prodItens(p,x.id).filter(it=>{const e=sp.itens[it.id];return e&&(e.plan||e.prod||e.sem)});if(!L.length)return;
-  s+="\n*"+x.nome+"* ("+sp.resp+")\n";L.forEach(it=>{const e=sp.itens[it.id];s+=(e.sem?"— ":e.prod?"✓ ":"✗ ")+it.t+(e.sem?": sem produção":": "+(e.prod||"não produzido")+(e.plan?" (plan. "+e.plan+")":""))+(e.resp?" · "+e.resp:"")+"\n"})});
+  s+="\n*"+x.nome+"* ("+sp.resp+")\n";L.forEach(it=>{const e=sp.itens[it.id];s+=(e.sem?"— ":e.feito?"✓ ":"✗ ")+it.t+(e.sem?": sem produção":": "+(e.prod||(e.feito?"feito":"não feito"))+(e.plan?" (plan. "+e.plan+")":""))+(e.feito?" · feito por "+e.feito.quem+" às "+hhmm(e.feito.ts):e.resp?" · "+e.resp:"")+"\n"})});
  if(p.ocorr&&p.ocorr.trim())s+="\n📝 Ocorrências: "+p.ocorr.trim()+"\n";s+="\n👤 Conferido por: "+p.conf+(p.fim?" às "+hhmm(p.fim):"")+"\n";return s}
 V.prel=function(){const dia=view.dia;return'<button class="back" data-nav2="prod">‹ Produção</button><div class="note ok"><b>Produção conferida.</b>Envie o resumo para a gerência.</div><div class="card"><div class="body"><pre style="white-space:pre-wrap;margin:0;font:inherit">'+esc(textoProd(dia))+'</pre></div></div><div class="stack"><a class="btn wa" href="'+waLink(textoProd(dia))+'" target="_blank" rel="noopener">'+WA_SVG+'Enviar no WhatsApp</a><button class="btn sec" data-pcopy="'+dia+'">Copiar texto</button></div>'};
 
 V.limp=function(){const k=view.k||mesKey(diaOp()),T=cronograma(k),cw=k===mesKey(diaOp())?semanaDoMes(diaOp()):0;
  const ks=Object.keys(cfg.limpeza).concat([mesKey(diaOp()),mesKey(addDias(diaOp(),31))]).filter((x,i,a)=>a.indexOf(x)===i).sort();
- let h='<div><p class="eyebrow">Cronograma de limpeza</p><h1>'+esc(nomeMes(k))+'</h1></div><div class="tool"><div class="tabs">'+ks.map(x=>'<button data-lmes="'+x+'" aria-pressed="'+(x===k)+'">'+esc(nomeMes(x).split(" ")[0])+'</button>').join("")+'</div></div>'+
+ let h='<div><p class="eyebrow">Cronograma de limpeza</p><h1>'+esc(nomeMes(k))+'</h1></div><div class="tool"><div class="tabs">'+ks.map(x=>'<button data-lmes="'+x+'" aria-pressed="'+(x===k)+'">'+esc(nomeMes(x).split(" ")[0])+'</button>').join("")+'</div><button class="btn sm sec" data-gerir="edlimp|'+k+'">Editar cronograma</button><button class="btn sm sec" data-gerir="edterc|">Editar terceirizados</button></div>'+pinBox()+
  '<div class="note warn"><b>Atenção aos EPIs.</b>Use luvas, botas e avental nas limpezas pesadas. Ao terminar, toque em "Feito" e escolha quem fez: isso vale como a assinatura do responsável.</div>'+
  '<div class="card scroll"><table class="tbl ltbl"><thead><tr><th>Equipamento / área</th><th>Frequência</th>'+[1,2,3,4].map(w=>'<th class="'+(w===cw?"cur":"")+'" style="text-align:center">'+w+'ª semana'+(w===cw?" · agora":"")+'</th>').join("")+'</tr></thead><tbody>'+
  T.map(t=>'<tr><td><b>'+esc(t.area)+'</b></td><td class="muted small">'+esc(t.freq)+'</td>'+[1,2,3,4].map(w=>{const r=t.resp[w-1],x=limp[lk(k,t.id,w)],cl='c'+(w===cw?" cur":"");if(!r)return'<td class="'+cl+'"><span class="muted">—</span></td>';
@@ -385,22 +395,49 @@ V.limp=function(){const k=view.k||mesKey(diaOp()),T=cronograma(k),cw=k===mesKey(
  cfg.terceiros.map(t=>{const pr=proxData(t),d=diasAte(pr);return'<tr><td><b>'+esc(t.nome)+'</b></td><td class="muted small">'+(t.meses==1?"Mensal":"A cada "+t.meses+" meses")+'</td><td class="num">'+dataCurta(t.ultima)+'</td><td><span class="chip '+(d<0?"alert":d<=7?"and":"ok")+' num">'+dataCurta(pr)+(d<0?" · atrasado":d<=7?" · em "+d+"d":"")+'</span></td><td><button class="btn xs sec" data-tfeito="'+t.id+'">Feito hoje</button></td></tr>'}).join("")+'</tbody></table></div></div>';
  return h};
 
-V.escala=function(){const ks=Object.keys(ESCALA).sort();let km=view.k||(ESCALA[mesKey(diaOp())]?mesKey(diaOp()):ks[ks.length-1]);
- const m=ESCALA[km],[y,mo]=km.split("-").map(Number),dias=new Date(y,mo,0).getDate(),ini=new Date(y,mo-1,1).getDay(),hoje=diaOp(),eq=view.q||"";
+V.escala=function(){const ES=cfg.escala,ks=Object.keys(ES).sort();let km=view.k||(ES[mesKey(diaOp())]?mesKey(diaOp()):ks[ks.length-1]);view.k=km;
+ const m=ES[km],[y,mo]=km.split("-").map(Number),dias=new Date(y,mo,0).getDate(),ini=new Date(y,mo-1,1).getDay(),hoje=diaOp(),eq=view.q||"",ed=!!view.edit;
  const WD=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"],WS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
- let c='<div class="cal'+(eq?" f":"")+'">'+WD.map(w=>'<div class="wd">'+w+'</div>').join(""),tot=0,dom=[],cp=0;
+ let c='<div class="cal'+(eq?" f":"")+(ed?" ed":"")+'">'+WD.map(w=>'<div class="wd">'+w+'</div>').join(""),tot=0,dom=[],cp=0;
  for(let i=0;i<ini;i++)c+='<div class="d out"></div>';
  for(let d=1;d<=dias;d++){const wd=(ini+d-1)%7,L=m.folgas[d]||[],CP=(m.compensa||{})[d]||[];let fer="";
   for(const f in m.ferias)if(d===m.ferias[f][0]&&L.indexOf(f)<0)fer+='<span class="p fer">Férias '+esc(f)+'</span>';
   const has=eq&&(L.indexOf(eq)>=0||CP.indexOf(eq)>=0);if(eq&&L.indexOf(eq)>=0){tot++;if(wd===0)dom.push(d)}if(eq&&CP.indexOf(eq)>=0)cp++;
   const ds=km+"-"+pad(d),fe=(m.feriados||{})[d];
-  const body=wd===1?'<span class="p">Fechado</span>':(fe?'<span class="p fe">★ Feriado</span>':"")+L.map(n=>'<span class="p'+(n===eq?" me":"")+'">'+esc(n)+'</span>').join("")+CP.map(n=>'<span class="p cp'+(n===eq?" me":"")+'">'+esc(n)+' · comp.</span>').join("")+fer;
-  c+='<div class="d'+(wd===1?" seg":"")+(has?" has":"")+(ds===hoje?" hoje":"")+(!L.length&&!CP.length&&!fer&&!fe&&wd!==1?" vz":"")+'"><span class="wl">'+WS[wd]+'</span><span class="n">'+d+'</span>'+body+'</div>'}
+  const body=(wd===1&&!L.length&&!CP.length)?'<span class="p">Fechado</span>':(fe?'<span class="p fe">★ Feriado</span>':"")+L.map(n=>'<span class="p'+(n===eq?" me":"")+'">'+esc(n)+'</span>').join("")+CP.map(n=>'<span class="p cp'+(n===eq?" me":"")+'">'+esc(n)+' · comp.</span>').join("")+fer;
+  c+='<div class="d'+(wd===1?" seg":"")+(has?" has":"")+(ds===hoje?" hoje":"")+(ed&&view.dia===d?" sel":"")+(!ed&&!L.length&&!CP.length&&!fer&&!fe&&wd!==1?" vz":"")+'"'+(ed?' data-eday="'+d+'"':"")+'><span class="wl">'+WS[wd]+'</span><span class="n">'+d+'</span>'+body+'</div>'}
  const resto=(7-(ini+dias)%7)%7;for(let i=0;i<resto;i++)c+='<div class="d out"></div>';c+='</div>';
  const res=eq?'<b>'+esc(eq)+'</b>: '+tot+' folga'+(tot===1?"":"s")+' além das segundas'+(cp?' + '+cp+' de compensação':'')+(dom.length?' · domingo'+(dom.length>1?"s ":" ")+dom.join(" e "):' · <b>sem domingo neste mês</b>')+'.':'Escala 5x2: segunda é fechado (folga de todos) e cada pessoa tem mais 1 folga na semana, com pelo menos 1 domingo no mês. Em azul, folgas de compensação de feriado.';
- return'<button class="back" data-ir="hoje">‹ Hoje</button><div class="esc-head"><img src="logo.jpg" alt="Matuto da China"><div><p class="eyebrow">Escala de folgas</p><h1>Calendário · '+esc(m.nome)+'</h1></div></div>'+
- '<div class="tool"><div class="tabs">'+ks.map(k=>'<button data-emes="'+k+'" aria-pressed="'+(k===km)+'">'+esc(ESCALA[k].nome.split(" ")[0])+'</button>').join("")+'</div><select class="inp" id="escSel" aria-label="Ver folgas de"><option value="">Todos</option>'+FUNC_PADRAO.concat(cfg.funcionarios.filter(n=>FUNC_PADRAO.indexOf(n)<0)).map(n=>'<option'+(n===eq?" selected":"")+'>'+esc(n)+'</option>').join("")+'</select></div>'+
- '<div class="esc-res">'+res+'</div>'+c+'<ul class="esc-notas">'+(m.notas||[]).map(n=>'<li>'+esc(n)+'</li>').join("")+'</ul>'};
+ let h='<button class="back" data-ir="hoje">‹ Hoje</button><div class="esc-head"><img src="logo.jpg" alt="Matuto da China"><div><p class="eyebrow">Escala de folgas</p><h1>Calendário · '+esc(m.nome)+'</h1></div></div>'+
+ '<div class="tool"><div class="tabs">'+ks.map(k=>'<button data-emes="'+k+'" aria-pressed="'+(k===km)+'">'+esc(ES[k].nome.split(" ")[0])+'</button>').join("")+'</div>'+
+ (ed?'<button class="btn sm pri" data-eclose>Concluir edição</button><button class="btn sm sec" data-enovo>+ Novo mês</button>':'<select class="inp" id="escSel" aria-label="Ver folgas de"><option value="">Todos</option>'+nomesEscala().map(n=>'<option'+(n===eq?" selected":"")+'>'+esc(n)+'</option>').join("")+'</select><button class="btn sm sec" data-gerir="eedit|">Editar escala</button>')+'</div>'+pinBox();
+ if(ed){h+=editorDia(km,m,y,mo)+avisosEscala(km,m)}else h+='<div class="esc-res">'+res+'</div>';
+ h+=c+'<ul class="esc-notas">'+(m.notas||[]).map(n=>'<li>'+esc(n)+'</li>').join("")+'</ul>';
+ if(ed)h+=editorMes(km,m);
+ return h};
+function nomesEscala(){return cfg.funcionarios.slice()}
+function editorDia(km,m,y,mo){const d=view.dia;if(!d)return'<div class="note info"><b>Modo edição.</b>Toque em um dia do calendário para escolher quem folga. As mudanças salvam na hora.</div>';
+ const L=m.folgas[d]||[],CP=(m.compensa||{})[d]||[],fe=!!(m.feriados||{})[d],wd=new Date(y,mo-1,d).getDay();
+ return'<div class="card"><header><h2>'+esc(dataLonga(km+"-"+pad(d)))+'</h2><button class="btn xs ghost" data-eday="0">Fechar</button></header><div class="body">'+
+ (wd===1?'<p class="muted small" style="margin:0">Segunda-feira: o restaurante fica fechado, todos já estão de folga.</p>':"")+
+ '<div><p class="eyebrow">Folga</p><div class="tags">'+nomesEscala().map(n=>'<button class="tog" data-ef="'+esc(n)+'" aria-pressed="'+(L.indexOf(n)>=0)+'">'+esc(n)+'</button>').join("")+'</div></div>'+
+ '<div><p class="eyebrow">Folga de compensação (feriado)</p><div class="tags">'+nomesEscala().map(n=>'<button class="tog cp" data-ec="'+esc(n)+'" aria-pressed="'+(CP.indexOf(n)>=0)+'">'+esc(n)+'</button>').join("")+'</div></div>'+
+ '<label class="row" style="justify-content:flex-start;gap:8px;align-items:center"><input type="checkbox" id="eFer"'+(fe?" checked":"")+' style="width:20px;height:20px"> <b>Este dia é feriado</b></label>'+
+ '<div class="rowbtn"><button class="btn sm sec" data-edmv="-1">‹ Dia anterior</button><button class="btn sm sec" data-edmv="1">Próximo dia ›</button></div></div></div>'}
+function avisosEscala(km,m){const [y,mo]=km.split("-").map(Number),dias=new Date(y,mo,0).getDate(),W=[];
+ const emFerias=(n,d)=>{const r=m.ferias[n];return r&&d>=r[0]&&d<=r[1]};
+ for(let d=1;d<=dias;d++){const s=(m.folgas[d]||[]).concat((m.compensa||{})[d]||[]);if(s.indexOf("Edilza")>=0&&s.indexOf("Jaciane")>=0)W.push("Dia "+d+": Edilza e Jaciane folgam juntas.");
+  const n=s.length,wd=new Date(y,mo-1,d).getDay();if(wd!==1&&n>4)W.push("Dia "+d+": "+n+" pessoas de folga.")}
+ let ini=1;while(ini<=dias){const wd0=new Date(y,mo-1,ini).getDay(),fim=Math.min(dias,ini+(6-wd0));
+  if(wd0===0&&fim-ini===6)nomesEscala().forEach(n=>{let c=0,disp=0;for(let d=ini;d<=fim;d++){if((m.folgas[d]||[]).indexOf(n)>=0&&new Date(y,mo-1,d).getDay()!==1)c++;if(!emFerias(n,d)&&new Date(y,mo-1,d).getDay()!==1)disp++}
+   if(disp>=5&&c===0)W.push("Semana "+ini+" a "+fim+": "+n+" sem folga além da segunda.");if(c>1)W.push("Semana "+ini+" a "+fim+": "+n+" com "+c+" folgas além da segunda.")});ini=fim+1}
+ nomesEscala().forEach(n=>{let tem=false,todo=true;for(let d=1;d<=dias;d++){if(new Date(y,mo-1,d).getDay()===0&&(m.folgas[d]||[]).indexOf(n)>=0)tem=true;if(!emFerias(n,d))todo=false}if(!tem&&!todo)W.push(n+" não folga nenhum domingo no mês.")});
+ return W.length?'<div class="note warn"><b>Conferir antes de fechar a escala ('+W.length+')</b><ul class="warns">'+W.map(w=>'<li>'+esc(w)+'</li>').join("")+'</ul></div>':'<div class="note ok"><b>Escala dentro das regras.</b>Todos com 1 folga por semana além da segunda, pelo menos 1 domingo e Edilza e Jaciane em dias diferentes.</div>'}
+function editorMes(km,m){const fer=Object.entries(m.ferias||{});
+ return'<div class="grid g2"><section class="card"><header><h2>Férias</h2></header><div class="body">'+(fer.length?fer.map(([n,r])=>'<div class="row" style="align-items:center"><b>'+esc(n)+'</b><span class="muted">dias '+r[0]+' a '+r[1]+'</span><button class="btn xs danger" data-efdel="'+esc(n)+'">Remover</button></div>').join(""):'<span class="muted small">Ninguém de férias neste mês.</span>')+
+ '<div class="rowbtn" style="align-items:center"><select class="inp" id="efN" style="flex:1 1 140px">'+optsFunc("")+'</select><input class="inp" id="efA" inputmode="numeric" placeholder="do dia" style="width:90px;flex:none"><input class="inp" id="efB" inputmode="numeric" placeholder="ao dia" style="width:90px;flex:none"><button class="btn sm sec" data-efadd>Adicionar</button></div></div></section>'+
+ '<section class="card"><header><h2>Anotações do mês</h2></header><div class="body"><textarea class="inp" id="eNotas" placeholder="Uma anotação por linha">'+esc((m.notas||[]).join("\n"))+'</textarea><p class="muted small" style="margin:0">Aparecem embaixo do calendário. Ex.: "Dia 02: Juliete à noite".</p></div></section></div>'+
+ '<div class="rowbtn"><button class="btn ghost" data-elimpar>Limpar todas as folgas deste mês</button></div><div id="eLimparArea"></div>'}
 
 let filtro="todos";
 V.hist=function(){const L=Object.entries(runs).filter(([,r])=>r.status==="concluido"&&(filtro==="todos"||r.setor===filtro)).map(([k,r])=>({k,r,t:r.fim,tipo:"c"}));
@@ -414,13 +451,16 @@ V.hist=function(){const L=Object.entries(runs).filter(([,r])=>r.status==="conclu
  return h+'</div>'};
 
 let liberado=false;
+function pinBox(){if(!view.askPin)return"";return'<div class="card"><div class="body"><b>Área da gerência</b><p class="muted small" style="margin:0">Digite a senha para editar.</p><div class="rowbtn"><input class="inp" id="pin2" type="password" inputmode="numeric" placeholder="Senha" style="flex:1 1 140px"><button class="btn pri sm" data-pin2>Liberar</button><button class="btn ghost sm" data-pin2x>Cancelar</button></div></div></div>'}
+function gerir(alvo){const [n,k]=alvo.split("|");if(n==="eedit"){if(view.n!=="escala")view={n:"escala"};view.edit=true;view.dia=null;view.askPin=null;render();window.scrollTo(0,0);return}ir({n:n,k:k||view.k})}
 V.ajustes=function(){let h='<div><p class="eyebrow">Configuração</p><h1>Ajustes</h1></div>'+
  '<section class="card"><header><h2>WhatsApp da gerência</h2></header><div class="body"><label class="field"><span>Número com DDD</span><input class="inp" id="fone" inputmode="tel" placeholder="Ex.: 81 99999-0000" value="'+esc(cfg.fone)+'"></label><p class="muted small" style="margin:0">Os relatórios abrem direto nessa conversa.</p></div></section>';
  if(!liberado)return h+'<section class="card"><header><h2>Área da gerência</h2></header><div class="body"><p class="muted" style="margin:0">Para alterar equipe, checklists, produção e cronograma de limpeza, digite a senha.</p><div class="rowbtn"><input class="inp" id="pin" type="password" inputmode="numeric" placeholder="Senha" style="flex:1 1 140px"><button class="btn pri sm" data-pin>Liberar</button></div></div></section>';
  h+='<div class="grid g2"><section class="card"><header><h2>Equipe</h2></header><div class="body"><p class="muted small" style="margin:0">'+cfg.funcionarios.length+' pessoas: '+esc(cfg.funcionarios.join(", "))+'</p><button class="btn sec sm" data-edfunc>Editar equipe</button></div></section>'+
  '<section class="card"><header><h2>Checklists</h2></header><div class="body">'+SETORES.map(s=>'<div class="rowbtn" style="align-items:center"><b style="flex:1 1 100%">'+s.nome+'</b>'+TURNOS.map(t=>'<button class="btn sec sm" data-editar="check|'+s.id+'|'+t.id+'">'+t.nome+' ('+lista(s.id,t.id).length+')</button>').join("")+'</div>').join("")+'</div></section>'+
  '<section class="card"><header><h2>Ordem de produção</h2></header><div class="body"><div class="rowbtn">'+PSET.map(s=>'<button class="btn sec sm" data-editar="prod|'+s.id+'">'+s.nome+' ('+cfg.producao[s.id].length+')</button>').join("")+'</div></div></section>'+
- '<section class="card"><header><h2>Cronograma de limpeza</h2></header><div class="body"><p class="muted small" style="margin:0">Cada mês começa como cópia do anterior. Ajuste quem faz cada semana.</p><div class="rowbtn">'+[mesKey(diaOp()),mesKey(addDias(diaOp(),31))].map(k=>'<button class="btn sec sm" data-edlimp="'+k+'">'+esc(nomeMes(k))+'</button>').join("")+'<button class="btn sec sm" data-edterc>Terceirizados</button></div></div></section></div>'+
+ '<section class="card"><header><h2>Cronograma de limpeza</h2></header><div class="body"><p class="muted small" style="margin:0">Cada mês começa como cópia do anterior. Ajuste quem faz cada semana.</p><div class="rowbtn">'+[mesKey(diaOp()),mesKey(addDias(diaOp(),31))].map(k=>'<button class="btn sec sm" data-edlimp="'+k+'">'+esc(nomeMes(k))+'</button>').join("")+'<button class="btn sec sm" data-edterc>Terceirizados</button></div></div></section>'+
+ '<section class="card"><header><h2>Escala de folgas</h2></header><div class="body"><p class="muted small" style="margin:0">Lance e ajuste as folgas de cada mês direto no calendário.</p><div class="rowbtn"><button class="btn sec sm" data-gerir="eedit|">Editar escala</button></div></div></section></div>'+
  '<section class="card"><header><h2>Senha e dados</h2></header><div class="body"><label class="field"><span>Nova senha da gerência</span><div class="rowbtn"><input class="inp" id="novoPin" inputmode="numeric" placeholder="Nova senha" style="flex:1 1 140px"><button class="btn sec sm" data-novopin>Trocar</button></div></label>'+
  '<p class="muted small" style="margin:0">Tudo fica salvo neste tablet. Faça um backup de vez em quando e guarde o arquivo no Drive ou WhatsApp.</p><div class="rowbtn"><button class="btn sec sm" data-backup>Baixar backup</button><button class="btn sec sm" data-restore>Restaurar backup</button></div><div id="limparArea"><button class="btn danger sm" data-limpar>Apagar histórico deste aparelho</button></div></div></section>';
  return h};
@@ -433,14 +473,15 @@ V.editar=function(){const e=view.ed,L=listaEd(),tit=e.kind==="check"?nomeSetor(e
   '<span style="margin-left:auto;display:flex;gap:6px"><button class="icon-btn" data-eup="'+it.id+'" aria-label="Subir"'+(i===0?" disabled":"")+'>↑</button><button class="icon-btn" data-edown="'+it.id+'" aria-label="Descer"'+(i===L.length-1?" disabled":"")+'>↓</button></span></div></div>'});
  return h+'</div><button class="btn sec" data-eadd>+ Adicionar item</button><button class="btn ghost" data-erestaurar>Restaurar lista padrão</button>'};
 V.edfunc=function(){return'<button class="back" data-ir="ajustes">‹ Ajustes</button><div><p class="eyebrow">Equipe</p><h1>Funcionários</h1></div><div class="stack">'+cfg.funcionarios.map((n,i)=>'<div class="rowbtn" style="align-items:center"><input class="inp" data-fn="'+i+'" value="'+esc(n)+'" style="flex:1"><button class="icon-btn del" data-fdel="'+i+'" aria-label="Remover">✕</button></div>').join("")+'</div><button class="btn sec" data-fadd>+ Adicionar pessoa</button><p class="muted small" style="margin:0">A escala de folgas é montada à parte; avise quando entrar ou sair alguém para atualizar a escala.</p>'};
-V.edlimp=function(){const k=view.k,T=cronograma(k);return'<button class="back" data-ir="ajustes">‹ Ajustes</button><div><p class="eyebrow">Cronograma de limpeza</p><h1>'+esc(nomeMes(k))+'</h1></div><div class="card scroll"><table class="tbl"><thead><tr><th>Área</th><th>Frequência</th><th>1ª</th><th>2ª</th><th>3ª</th><th>4ª</th><th></th></tr></thead><tbody>'+
- T.map(t=>'<tr><td><input class="inp" data-la="'+t.id+'" value="'+esc(t.area)+'" style="min-width:140px"></td><td><select class="inp" data-lf="'+t.id+'">'+["Semanal","Quinzenal","Mensal"].map(f=>'<option'+(f===t.freq?" selected":"")+'>'+f+'</option>').join("")+'</select></td>'+[0,1,2,3].map(w=>'<td><input class="inp" list="dlF2" data-lr="'+t.id+'|'+w+'" value="'+esc(t.resp[w])+'" placeholder="—" style="min-width:110px"></td>').join("")+'<td><button class="icon-btn del" data-ldel="'+t.id+'" aria-label="Remover">✕</button></td></tr>').join("")+
- '</tbody></table></div><datalist id="dlF2"><option value="Toda equipe">'+cfg.funcionarios.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist><button class="btn sec" data-ladd>+ Adicionar área</button><p class="muted small" style="margin:0">Deixe a semana vazia quando não houver limpeza (equivale ao "XX" da planilha).</p>'};
-V.edterc=function(){return'<button class="back" data-ir="ajustes">‹ Ajustes</button><div><p class="eyebrow">Limpeza terceirizada</p><h1>Serviços</h1></div><div class="stack">'+cfg.terceiros.map(t=>'<div class="ed-item"><input class="inp" data-tn="'+t.id+'" value="'+esc(t.nome)+'"><button class="icon-btn del" data-tdel="'+t.id+'" aria-label="Remover">✕</button><div class="ctl"><span class="muted">A cada</span><input class="inp mm" data-tm="'+t.id+'" inputmode="numeric" value="'+t.meses+'"><span class="muted">mês(es) · última vez</span><input class="inp" type="date" data-tu="'+t.id+'" value="'+t.ultima+'" style="width:auto"></div></div>').join("")+'</div><button class="btn sec" data-tadd>+ Adicionar serviço</button>'};
+V.edlimp=function(){const k=view.k,T=cronograma(k);return'<button class="back" data-voltar="limp|'+k+'">‹ Limpeza</button><div><p class="eyebrow">Cronograma de limpeza</p><h1>'+esc(nomeMes(k))+'</h1></div><div class="card scroll"><table class="tbl"><thead><tr><th>Área</th><th>Frequência</th><th>1ª</th><th>2ª</th><th>3ª</th><th>4ª</th><th></th></tr></thead><tbody>'+
+ T.map(t=>'<tr><td><input class="inp" data-la="'+t.id+'" value="'+esc(t.area)+'" style="min-width:140px"></td><td><select class="inp" data-lf="'+t.id+'" style="min-width:125px">'+["Semanal","Quinzenal","Mensal"].map(f=>'<option'+(f===t.freq?" selected":"")+'>'+f+'</option>').join("")+'</select></td>'+[0,1,2,3].map(w=>'<td><input class="inp" list="dlF2" data-lr="'+t.id+'|'+w+'" value="'+esc(t.resp[w])+'" placeholder="—" style="min-width:110px"></td>').join("")+'<td><button class="icon-btn del" data-ldel="'+t.id+'" aria-label="Remover">✕</button></td></tr>').join("")+
+ '</tbody></table></div><datalist id="dlF2"><option value="Toda equipe">'+cfg.funcionarios.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist><button class="btn sec" data-ladd>+ Adicionar área</button><p class="muted small" style="margin:0">Deixe a semana vazia quando não houver limpeza (equivale ao "XX" da planilha). As alterações salvam sozinhas.</p><button class="btn pri" data-voltar="limp|'+k+'">Concluir edição</button>'};
+V.edterc=function(){return'<button class="back" data-voltar="limp|">‹ Limpeza</button><div><p class="eyebrow">Limpeza terceirizada</p><h1>Serviços</h1></div><div class="stack">'+cfg.terceiros.map(t=>'<div class="ed-item"><input class="inp" data-tn="'+t.id+'" value="'+esc(t.nome)+'"><button class="icon-btn del" data-tdel="'+t.id+'" aria-label="Remover">✕</button><div class="ctl"><span class="muted">A cada</span><input class="inp mm" data-tm="'+t.id+'" inputmode="numeric" value="'+t.meses+'"><span class="muted">mês(es) · última vez</span><input class="inp" type="date" data-tu="'+t.id+'" value="'+t.ultima+'" style="width:auto"></div></div>').join("")+'</div><button class="btn sec" data-tadd>+ Adicionar serviço</button>'};
 
 /* ================= Eventos ================= */
 const app=$("#app");
-app.addEventListener("click",ev=>{const b=ev.target.closest("button,[data-rel]");if(!b)return;const d=b.dataset;
+app.addEventListener("click",ev=>{const b=ev.target.closest("button,[data-rel],[data-eday]");if(!b)return;const d=b.dataset;
+ if(d.eday!=null){view.dia=+d.eday||null;render();if(view.dia){const c=app.querySelector(".card");if(c)c.scrollIntoView({behavior:"smooth",block:"start"})}return}
  if(d.ir){ir({n:d.ir});return}
  if(d.nav2){ir({n:d.nav2});return}
  if("goesc" in d){ir({n:"escala"});return}
@@ -465,14 +506,30 @@ app.addEventListener("click",ev=>{const b=ev.target.closest("button,[data-rel]")
  if("pconcluir" in d){const dia=view.dia||diaOp(),p=obterProd(dia);if(!p.conf){$("#pFim").innerHTML='<div class="note bad"><b>Escolha quem conferiu.</b>Selecione o nome em "Conferido por".</div><button class="btn pri" data-pconcluir>Concluir e enviar relatório</button>';return}
   p.fim=Date.now();salvar();ir({n:"prel",dia});return}
  if(d.pcopy){copiar(textoProd(d.pcopy));return}
+ if(d.pfeito){view.psign=d.pfeito;render();return}
+ if(d.pok){const v=$("#pQuem").value;if(!v){toast("Escolha quem fez");return}const sp=obterProd(view.dia||diaOp()).setores[view.s||"fria"],e=sp.itens[d.pok]||(sp.itens[d.pok]={});e.feito={quem:v,ts:Date.now()};if(!e.resp)e.resp=v;view.psign=null;salvar();render();toast("Item marcado como feito");return}
+ if(d.pdesf){const e=obterProd(view.dia||diaOp()).setores[view.s||"fria"].itens[d.pdesf];if(e)delete e.feito;salvar();render();return}
  // limpeza
  if(d.lmes){ir({n:"limp",k:d.lmes});return}
  if(d.lfeito){view.sign=d.lfeito;render();return}
+ if(d.gerir){if(liberado)gerir(d.gerir);else{view.askPin=d.gerir;render();const i=$("#pin2");if(i)i.focus()}return}
+ if("pin2" in d){if($("#pin2").value===String(cfg.pin)){liberado=true;const a=view.askPin;view.askPin=null;gerir(a)}else toast("Senha incorreta");return}
+ if("pin2x" in d){view.askPin=null;render();return}
+ if(d.voltar){const [n,k]=d.voltar.split("|");ir({n,k:k||undefined});return}
  if(d.lok){const v=$("#lQuem").value;if(!v){toast("Escolha quem fez");return}const [id,w]=d.lok.split("|");limp[lk(view.k||mesKey(diaOp()),id,w)]={quem:v,ts:Date.now()};view.sign=null;salvar();render();toast("Limpeza registrada");return}
  if(d.ldesf){const [id,w]=d.ldesf.split("|");delete limp[lk(view.k||mesKey(diaOp()),id,w)];salvar();render();return}
  if(d.tfeito){const t=cfg.terceiros.find(x=>x.id===d.tfeito);t.ultima=diaOp();salvar();render();toast("Serviço registrado hoje");return}
  // escala
- if(d.emes){view.k=d.emes;render();return}
+ if(d.emes){view.k=d.emes;view.dia=null;render();return}
+ if("eclose" in d){view.edit=false;view.dia=null;render();return}
+ if(d.edmv){const m=cfg.escala[view.k],[y,mo]=view.k.split("-").map(Number),n=new Date(y,mo,0).getDate();view.dia=Math.min(n,Math.max(1,(view.dia||1)+(+d.edmv)));render();return}
+ if(d.ef||d.ec){const m=cfg.escala[view.k],campo=d.ef?"folgas":"compensa",nome=d.ef||d.ec;m[campo]=m[campo]||{};const L=m[campo][view.dia]||(m[campo][view.dia]=[]);const i=L.indexOf(nome);if(i>=0)L.splice(i,1);else L.push(nome);if(!L.length)delete m[campo][view.dia];salvar();render();return}
+ if("efadd" in d){const n=$("#efN").value,a=parseInt($("#efA").value,10),b=parseInt($("#efB").value,10);if(!n||!(a>0)||!(b>=a)){toast("Escolha o nome e os dias de início e fim");return}const m=cfg.escala[view.k];m.ferias=m.ferias||{};m.ferias[n]=[a,b];salvar();render();return}
+ if(d.efdel){delete cfg.escala[view.k].ferias[d.efdel];salvar();render();return}
+ if("enovo" in d){const ks=Object.keys(cfg.escala).sort(),u=ks[ks.length-1],[y,mo]=u.split("-").map(Number),nd=new Date(y,mo,1),k=nd.getFullYear()+"-"+pad(nd.getMonth()+1);cfg.escala[k]={nome:nomeMes(k).replace(" de "," "),folgas:{},compensa:{},feriados:{},ferias:{},notas:[]};salvar();view.k=k;view.dia=null;render();toast("Mês criado. Toque nos dias para lançar as folgas.");return}
+ if("elimpar" in d){$("#eLimparArea").innerHTML='<div class="note bad"><b>Apagar todas as folgas de '+esc(cfg.escala[view.k].nome)+'?</b>Feriados, férias e anotações ficam.</div><div class="rowbtn" style="margin-top:8px"><button class="btn sec sm" data-ecancel>Cancelar</button><button class="btn danger sm" data-elimpok>Apagar folgas</button></div>';return}
+ if("ecancel" in d){$("#eLimparArea").innerHTML="";return}
+ if("elimpok" in d){const m=cfg.escala[view.k];m.folgas={};m.compensa={};salvar();render();toast("Folgas apagadas");return}
  // ajustes
  if("pin" in d){if($("#pin").value===String(cfg.pin)){liberado=true;render()}else toast("Senha incorreta");return}
  if("novopin" in d){const v=$("#novoPin").value.trim();if(v.length<4){toast("Use pelo menos 4 dígitos");return}cfg.pin=v;salvar();toast("Senha trocada");$("#novoPin").value="";return}
@@ -502,7 +559,7 @@ app.addEventListener("input",ev=>{const el=ev.target,d=el.dataset;
  if(el.id==="fone"){cfg.fone=el.value;salvar();return}
  if(d.val){const r=runs[view.k];marcarInicio(r);const e=r.itens[d.val]||(r.itens[d.val]={});e.v=el.value;e.h=el.value.trim()?Date.now():null;salvar();
   const it=itensDe(r).find(x=>x.id===d.val),li=el.closest("li"),f=itemFeito(it,r),x=foraFaixa(it,r);li.classList.toggle("done",f);li.classList.toggle("out",x);li.querySelector(".hint").textContent=(x?"Fora da faixa! Ideal: ":"Ideal: ")+it.min+" a "+it.max+" °C";atualizarProg(r);return}
- if(d.pq){const [campo,id]=d.pq.split("|"),p=obterProd(view.dia||diaOp()),sp=p.setores[view.s||"fria"],e=sp.itens[id]||(sp.itens[id]={});e[campo]=el.value;salvar();const tr=el.closest("tr");if(campo==="prod")tr.classList.toggle("feito",!!el.value.trim());return}
+ if(d.pq){const [campo,id]=d.pq.split("|"),p=obterProd(view.dia||diaOp()),sp=p.setores[view.s||"fria"],e=sp.itens[id]||(sp.itens[id]={});e[campo]=el.value;salvar();const tr=el.closest("tr");return}
  if(el.id==="pResp"){obterProd(view.dia||diaOp()).setores[view.s||"fria"].resp=el.value;salvar();return}
  if(el.id==="pOcorr"){obterProd(view.dia||diaOp()).ocorr=el.value;salvar();return}
  if(view.n==="editar"){const L=listaEd(),f=id=>L.find(x=>x.id===id);
@@ -513,19 +570,21 @@ app.addEventListener("input",ev=>{const el=ev.target,d=el.dataset;
  if(d.la){cronograma(view.k).find(x=>x.id===d.la).area=el.value;salvar();return}
  if(d.lr){const [id,w]=d.lr.split("|");cronograma(view.k).find(x=>x.id===id).resp[+w]=el.value;salvar();return}
  if(d.tn){cfg.terceiros.find(x=>x.id===d.tn).nome=el.value;salvar();return}
+ if(el.id==="eNotas"){cfg.escala[view.k].notas=el.value.split("\n").map(x=>x.trim()).filter(Boolean);salvar();return}
  if(d.tm){const n=parseInt(el.value,10);if(n>0){cfg.terceiros.find(x=>x.id===d.tm).meses=n;salvar()}return}
 });
 app.addEventListener("change",ev=>{const el=ev.target,d=el.dataset;
  if(el.id==="resp"){runs[view.k].resp=el.value;salvar();return}
  if(el.id==="quemSel"){quem=el.value;render();return}
  if(el.id==="escSel"){view.q=el.value;render();return}
+ if(el.id==="eFer"){const m=cfg.escala[view.k];m.feriados=m.feriados||{};if(el.checked)m.feriados[view.dia]="Feriado";else delete m.feriados[view.dia];salvar();render();return}
  if(d.pr){const p=obterProd(view.dia||diaOp()),sp=p.setores[view.s||"fria"],e=sp.itens[d.pr]||(sp.itens[d.pr]={});e.resp=el.value;salvar();return}
  if(el.id==="pConf"){obterProd(view.dia||diaOp()).conf=el.value;salvar();return}
  if(d.etipo){const it=listaEd().find(x=>x.id===d.etipo);it.tipo=el.value;if(it.tipo==="temp"&&it.min==null){it.min=0;it.max=5}salvar();render();return}
  if(d.lf){cronograma(view.k).find(x=>x.id===d.lf).freq=el.value;salvar();return}
  if(d.tu){if(el.value){cfg.terceiros.find(x=>x.id===d.tu).ultima=el.value;salvar()}return}
 });
-app.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.id==="pin"){ev.preventDefault();app.querySelector("[data-pin]").click()}});
+app.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.id==="pin"){ev.preventDefault();app.querySelector("[data-pin]").click()}if(ev.key==="Enter"&&ev.target.id==="pin2"){ev.preventDefault();app.querySelector("[data-pin2]").click()}});
 $("#bkFile").addEventListener("change",ev=>{const f=ev.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const o=JSON.parse(rd.result);if(!o.cfg)throw 0;cfg=o.cfg;runs=o.runs||{};prods=o.prods||{};limp=o.limp||{};salvar();toast("Backup restaurado");render()}catch(e){toast("Arquivo de backup inválido")}};rd.readAsText(f);ev.target.value=""});
 render();
 })();
