@@ -144,6 +144,13 @@ details.av summary{font-weight:700;cursor:pointer}details.av p{margin:.5em 0;fon
 .tog{border:1.5px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 12px;font-weight:700;font-size:.85rem}
 .tog[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:var(--on-red)}.tog.cp[aria-pressed="true"]{background:var(--info);border-color:var(--info);color:#fff}
 .warns{margin:0;padding-left:18px;font-size:.88rem}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.kpi b{display:block;font-family:var(--display);font-weight:400;font-size:1.6rem;line-height:1.1}.kpi span{font-size:.8rem;color:var(--muted)}
+.gtbl td,.gtbl th{text-align:center;padding:6px 4px}.gtbl td:first-child,.gtbl th:first-child{text-align:left;white-space:nowrap}
+.st{display:inline-grid;place-items:center;width:30px;height:28px;border-radius:7px;font-weight:800;font-size:.85rem;border:0}
+.st.ok{background:var(--ok-bg);color:var(--ok)}.st.al{background:var(--warn-bg);color:var(--warn)}.st.no{background:var(--bad-bg);color:var(--bad)}.st.na{background:none;color:var(--muted)}.st.an{background:var(--info-bg);color:var(--info)}
+button.st{cursor:pointer}
+.gtbl tr.fech td{color:var(--muted);background:var(--sunk)}
 .pfeito{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.pfeito .ok{color:var(--ok);font-weight:700;font-size:.8rem;white-space:nowrap}
 @media (max-width:760px){
  .cal{grid-template-columns:1fr}.cal .wd,.cal .out,.cal .vz{display:none}
@@ -412,10 +419,30 @@ V.escala=function(){const ES=cfg.escala,ks=Object.keys(ES).sort();let km=view.k|
  '<div class="tool"><div class="tabs">'+ks.map(k=>'<button data-emes="'+k+'" aria-pressed="'+(k===km)+'">'+esc(ES[k].nome.split(" ")[0])+'</button>').join("")+'</div>'+
  (ed?'<button class="btn sm pri" data-eclose>Concluir edição</button><button class="btn sm sec" data-enovo>+ Novo mês</button>':'<select class="inp" id="escSel" aria-label="Ver folgas de"><option value="">Todos</option>'+nomesEscala().map(n=>'<option'+(n===eq?" selected":"")+'>'+esc(n)+'</option>').join("")+'</select><button class="btn sm sec" data-gerir="eedit|">Editar escala</button>')+'</div>'+pinBox();
  if(ed){h+=editorDia(km,m,y,mo)+avisosEscala(km,m)}else h+='<div class="esc-res">'+res+'</div>';
+ h+=cardComp(km);
  h+=c+'<ul class="esc-notas">'+(m.notas||[]).map(n=>'<li>'+esc(n)+'</li>').join("")+'</ul>';
  if(ed)h+=editorMes(km,m);
  return h};
 function nomesEscala(){return cfg.funcionarios.slice()}
+function mesAnt(k){const [y,m]=k.split("-").map(Number),d=new Date(y,m-2,1);return d.getFullYear()+"-"+pad(d.getMonth()+1)}
+function mesSeg(k){const [y,m]=k.split("-").map(Number),d=new Date(y,m,1);return d.getFullYear()+"-"+pad(d.getMonth()+1)}
+function compFeriados(km){const m=cfg.escala[km];if(!m||!m.feriados)return[];const [y,mo]=km.split("-").map(Number);
+ const fer=Object.keys(m.feriados).map(Number).filter(d=>new Date(y,mo-1,d).getDay()!==1).sort((a,b)=>a-b);if(!fer.length)return[];
+ const prox=cfg.escala[mesSeg(km)],emF=(n,d)=>{const r=(m.ferias||{})[n];return r&&d>=r[0]&&d<=r[1]};
+ const R=fer.map(d=>({dia:d,trab:[],pagos:[],falta:[]}));
+ nomesEscala().forEach(n=>{const dev=R.filter(r=>!emF(n,r.dia)&&(m.folgas[r.dia]||[]).indexOf(n)<0&&((m.compensa||{})[r.dia]||[]).indexOf(n)<0);dev.forEach(r=>r.trab.push(n));
+  const cps=[];Object.keys(m.compensa||{}).forEach(d=>{if((m.compensa[d]||[]).indexOf(n)>=0)cps.push({ord:+d,txt:pad(d)+"/"+pad(mo)})});
+  if(prox)Object.keys(prox.compensa||{}).forEach(d=>{if((prox.compensa[d]||[]).indexOf(n)>=0)cps.push({ord:100+(+d),txt:pad(d)+"/"+mesSeg(km).slice(5)})});
+  cps.sort((a,b)=>a.ord-b.ord);const fila=dev.slice();
+  cps.forEach(c=>{const i=fila.findIndex(r=>r.dia<c.ord);if(i>=0){fila[i].pagos.push(n+" ("+c.txt+")");fila.splice(i,1)}});
+  fila.forEach(r=>r.falta.push(n))});
+ return R}
+function cardComp(km){const blocos=[[km,compFeriados(km)],[mesAnt(km),compFeriados(mesAnt(km))]].filter(b=>b[1].length);if(!blocos.length)return"";
+ return'<div class="card"><header><h2>Compensação de feriados</h2></header><div class="body">'+blocos.map(([k,R])=>R.map(r=>{const [y,mo]=k.split("-");
+  return'<div><p class="eyebrow">Feriado '+pad(r.dia)+'/'+mo+' · trabalharam '+r.trab.length+'</p>'+
+  (r.falta.length?'<p style="margin:0 0 6px"><b style="color:var(--bad)">Falta compensar ('+r.falta.length+'):</b> '+esc(r.falta.join(", "))+'</p>':'<p style="margin:0 0 6px;color:var(--ok)"><b>Todos compensados.</b></p>')+
+  (r.pagos.length?'<p class="muted small" style="margin:0">Já compensados: '+esc(r.pagos.join(", "))+'</p>':"")+'</div>'}).join("")).join("")+
+ '<p class="muted small" style="margin:0">Conta as folgas de compensação (em azul) depois de cada feriado, neste mês e no seguinte, por ordem de data.</p></div></div>'}
 function editorDia(km,m,y,mo){const d=view.dia;if(!d)return'<div class="note info"><b>Modo edição.</b>Toque em um dia do calendário para escolher quem folga. As mudanças salvam na hora.</div>';
  const L=m.folgas[d]||[],CP=(m.compensa||{})[d]||[],fe=!!(m.feriados||{})[d],wd=new Date(y,mo-1,d).getDay();
  return'<div class="card"><header><h2>'+esc(dataLonga(km+"-"+pad(d)))+'</h2><button class="btn xs ghost" data-eday="0">Fechar</button></header><div class="body">'+
@@ -439,11 +466,47 @@ function editorMes(km,m){const fer=Object.entries(m.ferias||{});
  '<section class="card"><header><h2>Anotações do mês</h2></header><div class="body"><textarea class="inp" id="eNotas" placeholder="Uma anotação por linha">'+esc((m.notas||[]).join("\n"))+'</textarea><p class="muted small" style="margin:0">Aparecem embaixo do calendário. Ex.: "Dia 02: Juliete à noite".</p></div></section></div>'+
  '<div class="rowbtn"><button class="btn ghost" data-elimpar>Limpar todas as folgas deste mês</button></div><div id="eLimparArea"></div>'}
 
-let filtro="todos";
-V.hist=function(){const L=Object.entries(runs).filter(([,r])=>r.status==="concluido"&&(filtro==="todos"||r.setor===filtro)).map(([k,r])=>({k,r,t:r.fim,tipo:"c"}));
+let filtro="todos";const HM={hm:"sem"};
+V.hist=function(){const hm=view.hm||HM.hm;
+ let h='<div class="row"><div><p class="eyebrow">Registros deste aparelho</p><h1>Histórico e relatórios</h1></div></div><div class="tabs">'+[["sem","Semana"],["mes","Mês"],["reg","Todos os registros"]].map(([k,n])=>'<button data-hm="'+k+'" aria-pressed="'+(k===hm)+'">'+n+'</button>').join("")+'</div>';
+ return h+(hm==="reg"?histRegistros():relatorio(hm))};
+function periodo(hm,ref){const d=parse(ref);if(hm==="sem"){const a=new Date(d);a.setDate(d.getDate()-d.getDay());const b=new Date(a);b.setDate(a.getDate()+6);return[ymd(a),ymd(b)]}
+ return[ymd(new Date(d.getFullYear(),d.getMonth(),1)),ymd(new Date(d.getFullYear(),d.getMonth()+1,0))]}
+const COLS=[];SETORES.forEach(s=>TURNOS.forEach(t=>COLS.push({s:s.id,t:t.id,ab:s.nome.slice(0,3)+"·"+t.nome[0]})));
+function statusRun(dia,s,t,hoje){const r=runs[key(dia,s,t)];if(r&&r.status==="concluido"){const c=contagem(r);return(c.feitos<c.total||c.fora)?"al":"ok"}if(r&&r.status==="andamento")return"an";return dia<hoje?"no":"na"}
+function dadosPeriodo(a,b){const hoje=diaOp(),dias=[];for(let d=a;d<=b;d=addDias(d,1))dias.push(d);
+ const abertos=dias.filter(d=>parse(d).getDay()!==1&&d<=hoje);let esp=0,ok=0,al=0,no=0,fora=0;const falt={},pessoas={},pend={};
+ const P=n=>pessoas[n]||(pessoas[n]={c:0,l:0,p:0});
+ abertos.forEach(d=>COLS.forEach(c=>{if(d===hoje)return;esp++;const st=statusRun(d,c.s,c.t,hoje);if(st==="ok")ok++;else if(st==="al")al++;else{no++;const k=nomeSetor(c.s)+" · "+nomeTurno(c.t);falt[k]=(falt[k]||0)+1}}));
+ dias.forEach(d=>COLS.forEach(c=>{const r=runs[key(d,c.s,c.t)];if(!r||r.status!=="concluido")return;const ct=contagem(r);fora+=ct.fora;if(r.resp)P(r.resp).c++;
+  itensDe(r).forEach(it=>{if(!itemFeito(it,r)){const k=nomeSetor(c.s)+": "+it.t;pend[k]=(pend[k]||0)+1}})}));
+ let pd=0,pdOk=0,pIt=0,pItOk=0;abertos.forEach(d=>{const p=prods[d];if(d!==hoje)pd++;if(!p)return;if(p.fim)pdOk++;PSET.forEach(x=>prodItens(p,x.id).forEach(it=>{const e=p.setores[x.id].itens[it.id];if(e&&(e.plan||e.feito||e.sem)){pIt++;if(e.feito||e.sem)pItOk++}if(e&&e.feito)P(e.feito.quem).p++}))});
+ const t0=parse(a).getTime(),t1=parse(addDias(b,1)).getTime();let lz=0;Object.values(limp).forEach(x=>{if(x.ts>=t0&&x.ts<t1){lz++;if(x.quem!=="Toda equipe")P(x.quem).l++}});
+ return{dias,abertos,esp,ok,al,no,fora,falt,pessoas,pend,pd,pdOk,pIt,pItOk,lz,hoje}}
+function relatorio(hm){const ref=view.ref||HM.ref||addDias(diaOp(),-1),[a,b]=periodo(hm,ref),D=dadosPeriodo(a,b);
+ const tit=hm==="sem"?"Semana de "+dataCurta(a).slice(0,5)+" a "+dataCurta(b).slice(0,5):nomeMes(a.slice(0,7));
+ const pct=D.esp?Math.round((D.ok+D.al)/D.esp*100):0;
+ let h='<div class="row"><h2 style="font-size:1.3rem">'+esc(tit)+'</h2><div class="tool"><button class="btn sm sec" data-rref="-1">‹ Anterior</button><button class="btn sm sec" data-rref="0">Atual</button><button class="btn sm sec" data-rref="1">Próxima ›</button></div></div>';
+ h+='<div class="kpis"><div class="kpi"><b class="num">'+(D.esp?pct+'%':'—')+'</b><span>checklists concluídos ('+(D.ok+D.al)+' de '+D.esp+')</span></div><div class="kpi"><b class="num" style="color:var(--bad)">'+D.no+'</b><span>checklists não feitos</span></div><div class="kpi"><b class="num" style="color:var(--warn)">'+D.al+'</b><span>concluídos com pendência</span></div><div class="kpi"><b class="num">'+D.fora+'</b><span>temperaturas fora da faixa</span></div><div class="kpi"><b class="num">'+D.pdOk+'/'+D.pd+'</b><span>ordens de produção conferidas</span></div><div class="kpi"><b class="num">'+D.lz+'</b><span>limpezas registradas</span></div></div>';
+ h+='<p class="muted small" style="margin:0">O dia de hoje ainda não entra na conta. Segundas não contam (fechado).</p>';
+ h+='<div class="card scroll"><table class="tbl gtbl"><thead><tr><th>Dia</th>'+COLS.map(c=>'<th>'+esc(c.ab)+'</th>').join("")+'<th>Produção</th></tr></thead><tbody>'+
+  D.dias.map(d=>{const seg=parse(d).getDay()===1,lab=cap1(parse(d).toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"}));
+   if(seg)return'<tr class="fech"><td>'+esc(lab)+'</td><td colspan="'+(COLS.length+1)+'">Fechado</td></tr>';
+   return'<tr><td>'+esc(lab)+'</td>'+COLS.map(c=>{const st=statusRun(d,c.s,c.t,D.hoje),tx={ok:"✓",al:"!",no:"✗",an:"…",na:"·"}[st];return'<td>'+((st==="ok"||st==="al")?'<button class="st '+st+'" data-rel="'+esc(key(d,c.s,c.t))+'" title="Abrir relatório">'+tx+'</button>':'<span class="st '+st+'">'+tx+'</span>')+'</td>'}).join("")+
+   '<td>'+(prods[d]&&prods[d].fim?'<button class="st ok" data-prel="'+d+'">✓</button>':'<span class="st '+(d<D.hoje?"no":"na")+'">'+(d<D.hoje?"✗":"·")+'</span>')+'</td></tr>'}).join("")+'</tbody></table></div>';
+ h+='<p class="muted small" style="margin:0">✓ concluído · ! concluído com pendência · ✗ não feito · … em andamento. Toque em ✓ ou ! para abrir o relatório daquele checklist.</p>';
+ const falt=Object.entries(D.falt).sort((x,y)=>y[1]-x[1]),pend=Object.entries(D.pend).sort((x,y)=>y[1]-x[1]).slice(0,8),pes=Object.entries(D.pessoas).sort((x,y)=>(y[1].c+y[1].l+y[1].p)-(x[1].c+x[1].l+x[1].p));
+ h+='<div class="grid g2"><section class="card"><header><h2>Checklists que mais faltaram</h2></header><div class="body">'+(falt.length?falt.map(([k,n])=>'<div class="row"><span>'+esc(k)+'</span><b class="num">'+n+'×</b></div>').join(""):'<span class="muted">Nenhum checklist faltou.</span>')+'</div></section>'+
+ '<section class="card"><header><h2>Itens mais deixados pendentes</h2></header><div class="body">'+(pend.length?pend.map(([k,n])=>'<div class="row"><span>'+esc(k)+'</span><b class="num">'+n+'×</b></div>').join(""):'<span class="muted">Nenhum item pendente.</span>')+'</div></section></div>';
+ h+='<section class="card"><header><h2>Participação da equipe</h2></header><div class="scroll"><table class="tbl"><thead><tr><th>Pessoa</th><th>Checklists</th><th>Itens de produção</th><th>Limpezas</th></tr></thead><tbody>'+(pes.length?pes.map(([n,v])=>'<tr><td><b>'+esc(n)+'</b></td><td class="num">'+v.c+'</td><td class="num">'+v.p+'</td><td class="num">'+v.l+'</td></tr>').join(""):'<tr><td colspan="4" class="muted">Sem registros no período.</td></tr>')+'</tbody></table></div></section>';
+ h+='<div class="rowbtn"><a class="btn wa" href="'+waLink(textoRelPeriodo(tit,D,pct,falt))+'" target="_blank" rel="noopener">'+WA_SVG+'Enviar resumo no WhatsApp</a></div>';
+ return h}
+function textoRelPeriodo(tit,D,pct,falt){let s="*MATUTO DA CHINA*\n📊 Relatório · "+tit+"\n\n✅ Checklists concluídos: "+pct+"% ("+(D.ok+D.al)+" de "+D.esp+")\n✗ Não feitos: "+D.no+"\n⚠️ Com pendência: "+D.al+"\n🌡️ Temperaturas fora da faixa: "+D.fora+"\n🍱 Produção conferida: "+D.pdOk+"/"+D.pd+"\n🧽 Limpezas registradas: "+D.lz+"\n";
+ if(falt.length){s+="\n*Mais faltaram:*\n";falt.slice(0,5).forEach(([k,n])=>s+="• "+k+": "+n+"×\n")}return s}
+function histRegistros(){const L=Object.entries(runs).filter(([,r])=>r.status==="concluido"&&(filtro==="todos"||r.setor===filtro)).map(([k,r])=>({k,r,t:r.fim,tipo:"c"}));
  if(filtro==="todos"||filtro==="prod")Object.entries(prods).forEach(([d,p])=>{if(p.fim)L.push({k:d,p,t:p.fim,tipo:"p"})});
  L.sort((a,b)=>b.t-a.t);
- let h='<div><p class="eyebrow">Registros deste aparelho</p><h1>Histórico</h1></div><div class="filters">'+[{id:"todos",nome:"Todos"}].concat(SETORES,[{id:"prod",nome:"Produção"}]).map(s=>'<button class="fchip" data-filtro="'+s.id+'" aria-pressed="'+(filtro===s.id)+'">'+s.nome+'</button>').join("")+'</div>';
+ let h='<div class="filters">'+[{id:"todos",nome:"Todos"}].concat(SETORES,[{id:"prod",nome:"Produção"}]).map(s=>'<button class="fchip" data-filtro="'+s.id+'" aria-pressed="'+(filtro===s.id)+'">'+s.nome+'</button>').join("")+'</div>';
  if(!L.length)return h+'<div class="vazio">Nada concluído ainda. Os registros aparecem aqui quando alguém conclui um checklist ou uma ordem de produção.</div>';
  let dia="";L.slice(0,150).forEach(o=>{const d=ymd(new Date(o.t));if(d!==dia){if(dia)h+='</div>';dia=d;h+='<div class="stack"><p class="eyebrow" style="margin:0">'+esc(dataLonga(d))+'</p>'}
   if(o.tipo==="c"){const c=contagem(o.r),al=c.fora>0||c.feitos<c.total;h+='<button class="hrow" data-rel="'+esc(o.k)+'"><span class="txt"><div class="t">'+nomeSetor(o.r.setor)+' · '+nomeTurno(o.r.turno)+'</div><div class="s num">'+hhmm(o.r.fim)+' · '+esc(o.r.resp)+'</div></span><span class="chip '+(al?"alert":"ok")+' num">'+c.feitos+'/'+c.total+'</span></button>'}
@@ -497,6 +560,8 @@ app.addEventListener("click",ev=>{const b=ev.target.closest("button,[data-rel],[
  if(d.rel){ir({n:"rel",k:d.rel,de:"hist"});return}
  if(d.prel){ir({n:"prel",dia:d.prel});return}
  if(d.filtro){filtro=d.filtro;render();return}
+ if(d.hm){view.hm=HM.hm=d.hm;HM.ref=view.ref=null;render();return}
+ if(d.rref){const n=+d.rref,hm=view.hm||HM.hm;if(!n)view.ref=diaOp();else{const r=parse(view.ref||HM.ref||addDias(diaOp(),-1));if(hm==="sem")r.setDate(r.getDate()+7*n);else{r.setDate(1);r.setMonth(r.getMonth()+n)}view.ref=ymd(r)}HM.ref=view.ref;render();return}
  // produção
  if(d.pdia){const n=+d.pdia;ir({n:"prod",s:view.s,dia:n===0?diaOp():addDias(view.dia||diaOp(),n)});return}
  if(d.pset){view.s=d.pset;render();return}
