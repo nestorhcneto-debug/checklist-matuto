@@ -96,7 +96,8 @@ select.inp{padding:10px}
 .tabs{display:flex;background:var(--sunk);border-radius:99px;padding:4px;flex-wrap:wrap;align-self:flex-start}
 .tabs button{border:0;background:none;border-radius:99px;padding:8px 16px;font-weight:700}
 .tabs button[aria-pressed="true"]{background:var(--red);color:var(--on-red)}
-.tool{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.tool select.inp{width:auto}
+.tool{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.mnav{display:flex;gap:6px;align-items:center}.mnav .inp{min-width:170px}.tool select.inp{width:auto}
 .tbl{width:100%;border-collapse:collapse;font-size:.92rem}
 .tbl th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:8px;border-bottom:1.5px solid var(--line)}
 .tbl td{padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
@@ -267,7 +268,8 @@ function statusPessoa(n,s){const e=escalaDia(s);if(!e)return"";if(e.seg)return"F
 /* ================= Checklists ================= */
 function lista(s,t){return cfg.listas[s][t]}
 function itemFeito(it,r){const e=r.itens[it.id];if(!e)return false;return it.tipo==="check"?!!e.ok:(e.v!=null&&String(e.v).trim()!=="")}
-function foraFaixa(it,r){if(it.tipo!=="temp")return false;const e=r.itens[it.id];if(!e||e.v==null||e.v==="")return false;const n=parseFloat(String(e.v).replace(",","."));return isNaN(n)||n<it.min||n>it.max}
+function foraFaixa(it,r){if(it.tipo!=="temp")return false;const e=r.itens[it.id];if(!e||e.v==null||e.v==="")return false;const n=numTemp(it,e.v);return isNaN(n)||n<it.min||n>it.max}
+function numTemp(it,v){let s=String(v).trim().replace(",",".");if(it.max<0&&/^\.?\d/.test(s))s="-"+s.replace(/^\./,"");return parseFloat(s)}
 const itensDe=r=>r.lista||lista(r.setor,r.turno);
 function contagem(r){const L=itensDe(r);let f=0,x=0;L.forEach(it=>{if(itemFeito(it,r))f++;if(foraFaixa(it,r))x++});return{feitos:f,total:L.length,fora:x}}
 function obterRun(s,t){const k=key(diaOp(),s,t);if(!runs[k])runs[k]={setor:s,turno:t,dia:diaOp(),resp:"",inicio:null,fim:null,status:"novo",itens:{},obs:""};return runs[k]}
@@ -289,7 +291,7 @@ function diasAte(s){return Math.round((parse(s)-parse(diaOp()))/864e5)}
 
 /* ================= Navegação ================= */
 let view={n:"hoje"},quem="";
-function ir(v){if(v.n==="escala"&&view.n!=="escala"){v.edit=false}view=v;render();window.scrollTo(0,0)}
+function ir(v){pendRender=false;if(v.n==="escala"&&view.n!=="escala"){v.edit=false}view=v;render();window.scrollTo(0,0)}
 document.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>ir({n:b.dataset.nav})));
 $("#escBtn").addEventListener("click",()=>ir({n:"escala"}));
 const SEC={hoje:"hoje",check:"hoje",rel:"hoje",prod:"prod",prel:"prod",limp:"limp",hist:"hist",ajustes:"ajustes",editar:"ajustes",edlimp:"limp",edterc:"limp",edfunc:"ajustes"};
@@ -347,10 +349,10 @@ V.check=function(){const r=runs[view.k],L=itensDe(r),c=contagem(r),pct=c.total?M
  '<div id="fimArea" class="stack"><button class="btn pri" data-concluir>Concluir checklist</button></div>'};
 function linhaItem(it,r){const e=r.itens[it.id]||{},feito=itemFeito(it,r),fora=foraFaixa(it,r),cls="item"+(feito?" done":"")+(fora?" out":"");
  if(it.tipo==="check")return'<li class="'+cls+'"><button class="tap" data-toggle="'+it.id+'" aria-pressed="'+feito+'"><span class="box">'+CHECK+'</span><span class="txt"><div class="t">'+esc(it.t)+'</div>'+(e.h?'<div class="when">Feito às '+hhmm(e.h)+'</div>':"")+'</span></button></li>';
- return'<li class="'+cls+'"><div class="val"><span class="box">'+CHECK+'</span><span class="txt"><div class="t">'+esc(it.t)+'</div><div class="hint">'+(fora?"Fora da faixa! Ideal: ":"Ideal: ")+it.min+" a "+it.max+' °C</div></span><div class="unit"><input class="inp" id="v_'+it.id+'" data-val="'+it.id+'" inputmode="decimal" placeholder="0" value="'+esc(e.v||"")+'"><b>°C</b></div></div></li>'}
+ return'<li class="'+cls+'"><div class="val"><span class="box">'+CHECK+'</span><span class="txt"><div class="t">'+esc(it.t)+'</div><div class="hint">'+(fora?"Fora da faixa! Ideal: ":"Ideal: ")+it.min+" a "+it.max+" °C"+(it.max<0?" · digite só o número, o sinal de menos é automático":"")+'</div></span><div class="unit"><input class="inp" id="v_'+it.id+'" data-val="'+it.id+'" inputmode="decimal" placeholder="0" value="'+esc(e.v||"")+'"><b>°C</b></div></div></li>'}
 function atualizarProg(r){const c=contagem(r),pct=c.total?Math.round(c.feitos/c.total*100):0;$("#pTxt").textContent=c.feitos+" de "+c.total+" itens";$("#pPct").textContent=pct+"%";$("#pBar").className="bar"+(pct<100?" mid":"");$("#pBar span").style.width=pct+"%"}
 function tentarConcluir(forcar){const r=runs[view.k],c=contagem(r),area=$("#fimArea");
- if(!r.resp){area.innerHTML='<div class="note bad"><b>Escolha o responsável.</b>Selecione seu nome lá em cima para concluir.</div><button class="btn pri" data-concluir>Concluir checklist</button>';$("#resp").focus();return}
+ if(!r.resp){area.innerHTML='<div class="note bad"><b>Quem fez este checklist?</b>Escolha seu nome aqui embaixo e toque em Concluir de novo.</div><div class="rowbtn" style="align-items:center"><select class="inp" id="respFim" style="flex:1 1 200px">'+optsFunc("")+'</select><button class="btn pri" data-concluir>Concluir checklist</button></div>';area.scrollIntoView({behavior:"smooth",block:"center"});return}
  const pend=c.total-c.feitos;
  if(!forcar&&(pend>0||c.fora>0)){const msg=[];if(pend>0)msg.push(pend+(pend>1?" itens ainda não foram feitos":" item ainda não foi feito"));if(c.fora>0)msg.push(c.fora+(c.fora>1?" temperaturas fora da faixa":" temperatura fora da faixa"));
   area.innerHTML='<div class="note warn"><b>Atenção: '+msg.join(" e ")+'.</b>Eles vão aparecer como pendência no relatório. Explique nas observações, se puder.</div><div class="rowbtn"><button class="btn sec" data-voltaritens>Voltar aos itens</button><button class="btn pri" data-forcar>Concluir mesmo assim</button></div>';area.scrollIntoView({behavior:"smooth",block:"center"});return}
@@ -415,12 +417,12 @@ V.escala=function(){const ES=cfg.escala,ks=Object.keys(ES).sort();let km=view.k|
   for(const f in m.ferias)if(d===m.ferias[f][0]&&L.indexOf(f)<0)fer+='<span class="p fer">Férias '+esc(f)+'</span>';
   const has=eq&&(L.indexOf(eq)>=0||CP.indexOf(eq)>=0);if(eq&&L.indexOf(eq)>=0){tot++;if(wd===0)dom.push(d)}if(eq&&CP.indexOf(eq)>=0)cp++;
   const ds=km+"-"+pad(d),fe=(m.feriados||{})[d];
-  const body=(wd===1&&!L.length&&!CP.length)?'<span class="p">Fechado</span>':(fe?'<span class="p fe">★ Feriado</span>':"")+L.map(n=>'<span class="p'+(n===eq?" me":"")+'">'+esc(n)+'</span>').join("")+CP.map(n=>'<span class="p cp'+(n===eq?" me":"")+'">'+esc(n)+' · comp.</span>').join("")+fer;
+  const body=(wd===1&&!L.length&&!CP.length)?'<span class="p">Fechado</span>':(fe?'<span class="p fe">★ '+(fe==="Feriado"?"Feriado":esc(fe))+'</span>':"")+L.map(n=>'<span class="p'+(n===eq?" me":"")+'">'+esc(n)+'</span>').join("")+CP.map(n=>'<span class="p cp'+(n===eq?" me":"")+'">'+esc(n)+' · comp.</span>').join("")+fer;
   c+='<div class="d'+(wd===1?" seg":"")+(has?" has":"")+(ds===hoje?" hoje":"")+(ed&&view.dia===d?" sel":"")+(!ed&&!L.length&&!CP.length&&!fer&&!fe&&wd!==1?" vz":"")+'"'+(ed?' data-eday="'+d+'"':"")+'><span class="wl">'+WS[wd]+'</span><span class="n">'+d+'</span>'+body+'</div>'}
  const resto=(7-(ini+dias)%7)%7;for(let i=0;i<resto;i++)c+='<div class="d out"></div>';c+='</div>';
  const res=eq?'<b>'+esc(eq)+'</b>: '+tot+' folga'+(tot===1?"":"s")+' além das segundas'+(cp?' + '+cp+' de compensação':'')+(dom.length?' · domingo'+(dom.length>1?"s ":" ")+dom.join(" e "):' · <b>sem domingo neste mês</b>')+'.':'Escala 5x2: segunda é fechado (folga de todos) e cada pessoa tem mais 1 folga na semana, com pelo menos 1 domingo no mês. Em azul, folgas de compensação de feriado.';
  let h='<button class="back" data-ir="hoje">‹ Hoje</button><div class="esc-head"><img src="logo.jpg" alt="Matuto da China"><div><p class="eyebrow">Escala de folgas</p><h1>Calendário · '+esc(m.nome)+'</h1></div></div>'+
- '<div class="tool"><div class="tabs">'+ks.map(k=>'<button data-emes="'+k+'" aria-pressed="'+(k===km)+'">'+esc(ES[k].nome.split(" ")[0])+'</button>').join("")+'</div>'+
+ '<div class="tool"><div class="mnav"><button class="btn sm sec" data-emes="'+(ks[ks.indexOf(km)-1]||"")+'"'+(ks.indexOf(km)>0?"":" disabled")+' aria-label="Mês anterior">‹</button><select class="inp" id="emesSel" aria-label="Mês">'+ks.map(k=>'<option value="'+k+'"'+(k===km?" selected":"")+'>'+esc(ES[k].nome)+'</option>').join("")+'</select><button class="btn sm sec" data-emes="'+(ks[ks.indexOf(km)+1]||"")+'"'+(ks.indexOf(km)<ks.length-1?"":" disabled")+' aria-label="Próximo mês">›</button></div>'+
  (ed?'<button class="btn sm pri" data-eclose>Concluir edição</button><button class="btn sm sec" data-enovo>+ Novo mês</button>':'<select class="inp" id="escSel" aria-label="Ver folgas de"><option value="">Todos</option>'+nomesEscala().map(n=>'<option'+(n===eq?" selected":"")+'>'+esc(n)+'</option>').join("")+'</select><button class="btn sm sec" data-gerir="eedit|">Editar escala</button>')+'</div>'+pinBox();
  if(ed){h+=editorDia(km,m,y,mo)+avisosEscala(km,m)}else h+='<div class="esc-res">'+res+'</div>';
  h+=cardComp(km);
@@ -554,7 +556,7 @@ function syncOn(){return!!(SY&&SY.tok&&SYNC_URL&&SYNC_URL.indexOf("http")===0)}
 function hsh(s){let h=5381;for(let i=0;i<s.length;i++)h=(Math.imul(h,33)^s.charCodeAt(i))|0;return(h>>>0).toString(36)+"."+s.length}
 function recsLocais(){const R={};
  Object.keys(runs).forEach(k=>{if(runs[k].status!=="novo")R["run|"+k]=runs[k]});
- Object.keys(prods).forEach(k=>R["prod|"+k]=prods[k]);
+ Object.keys(prods).forEach(k=>{if(!prodVazio(prods[k]))R["prod|"+k]=prods[k]});
  Object.keys(limp).forEach(k=>R["limp|"+k]=limp[k]);
  Object.keys(res).forEach(k=>R["res|"+k]=res[k]);
  Object.keys(cfg).forEach(f=>{if(f==="ultimoResp")return;if(f==="escala"||f==="limpeza")Object.keys(cfg[f]).forEach(m=>R["cfg|"+f+"|"+m]=cfg[f][m]);else R["cfg|"+f]=cfg[f]});
@@ -572,6 +574,8 @@ function linhaPlanilha(t,k,v){
  return null}
 let syncBusy=false,syncTimer=null,pendRender=false;
 function syncAgendar(){if(!syncOn())return;clearTimeout(syncTimer);syncTimer=setTimeout(sincronizar,2500)}
+function podeRender(){return["hoje","hist","limp","escala","rel","prel"].indexOf(view.n)>=0&&!view.edit&&!view.askPin&&!view.resolv&&!view.sign}
+function prodVazio(p){if(p.fim||(p.ocorr||"").trim()||(p.conf||"").trim())return false;return!Object.values(p.setores||{}).some(s=>Object.values(s.itens||{}).some(e=>Object.values(e||{}).some(v=>v===true||(v&&typeof v==="object")||(typeof v==="string"&&v.trim()))))}
 function editando(){const a=document.activeElement;return a&&app.contains(a)&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)}
 async function sincronizar(){if(!syncOn()||syncBusy)return;syncBusy=true;
  try{
@@ -595,7 +599,7 @@ async function sincronizar(){if(!syncOn()||syncBusy)return;syncBusy=true;
    if(!p.ok)throw new Error(p.erro==="codigo"?"Código de acesso incorreto":"Erro no servidor");
    parte.forEach(o=>{if(o.h)SY.sent[o.id]=o.h;else{delete SY.sent[o.id];SY.del=(SY.del||[]).filter(x=>x!==o.id)}})}
   SY.ult=Date.now();SY.err="";salvarSY();
-  if(mudou){if(editando())pendRender=true;else render()}else if(view.n==="ajustes"||view.n==="hist")atualizarStatusSync();
+  if(mudou){if(editando()||!podeRender())pendRender=true;else render()}else if(view.n==="ajustes"||view.n==="hist")atualizarStatusSync();
  }catch(e){SY.err=String(e&&e.message||e);if(/fetch|network|Load failed/i.test(SY.err))SY.err="Sem internet no momento";salvarSY();atualizarStatusSync()}
  finally{syncBusy=false}}
 function textoSync(){if(!syncOn())return'<span class="sy off">● Desligado</span> Os dados ficam só neste aparelho.';
@@ -728,7 +732,7 @@ app.addEventListener("input",ev=>{const el=ev.target,d=el.dataset;
  if(el.id==="obs"){runs[view.k].obs=el.value;salvar();return}
  if(el.id==="fone"){cfg.fone=el.value;salvar();return}
  if(d.val){const r=runs[view.k];marcarInicio(r);const e=r.itens[d.val]||(r.itens[d.val]={});e.v=el.value;e.h=el.value.trim()?Date.now():null;salvar();
-  const it=itensDe(r).find(x=>x.id===d.val),li=el.closest("li"),f=itemFeito(it,r),x=foraFaixa(it,r);li.classList.toggle("done",f);li.classList.toggle("out",x);li.querySelector(".hint").textContent=(x?"Fora da faixa! Ideal: ":"Ideal: ")+it.min+" a "+it.max+" °C";atualizarProg(r);return}
+  const it=itensDe(r).find(x=>x.id===d.val),li=el.closest("li"),f=itemFeito(it,r),x=foraFaixa(it,r);li.classList.toggle("done",f);li.classList.toggle("out",x);li.querySelector(".hint").textContent=(x?"Fora da faixa! Ideal: ":"Ideal: ")+it.min+" a "+it.max+" °C"+(it.max<0?" · digite só o número, o sinal de menos é automático":"");atualizarProg(r);return}
  if(d.pq){const [campo,id]=d.pq.split("|"),p=obterProd(view.dia||diaOp()),sp=p.setores[view.s||"fria"],e=sp.itens[id]||(sp.itens[id]={});e[campo]=el.value;salvar();const tr=el.closest("tr");return}
  if(el.id==="pResp"){obterProd(view.dia||diaOp()).setores[view.s||"fria"].resp=el.value;salvar();return}
  if(el.id==="pOcorr"){obterProd(view.dia||diaOp()).ocorr=el.value;salvar();return}
@@ -744,7 +748,8 @@ app.addEventListener("input",ev=>{const el=ev.target,d=el.dataset;
  if(d.tm){const n=parseInt(el.value,10);if(n>0){cfg.terceiros.find(x=>x.id===d.tm).meses=n;salvar()}return}
 });
 app.addEventListener("change",ev=>{const el=ev.target,d=el.dataset;
- if(el.id==="resp"){runs[view.k].resp=el.value;salvar();return}
+ if(el.id==="resp"||el.id==="respFim"){runs[view.k].resp=el.value;const a=$("#resp"),b=$("#respFim");if(a)a.value=el.value;if(b)b.value=el.value;salvar();return}
+ if(el.id==="emesSel"){view.k=el.value;view.dia=null;render();return}
  if(el.id==="quemSel"){quem=el.value;render();return}
  if(el.id==="escSel"){view.q=el.value;render();return}
  if(el.id==="odSel"){view.od=+el.value;render();return}
@@ -758,7 +763,7 @@ app.addEventListener("change",ev=>{const el=ev.target,d=el.dataset;
 app.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&ev.target.id==="pin"){ev.preventDefault();app.querySelector("[data-pin]").click()}if(ev.key==="Enter"&&ev.target.id==="pin2"){ev.preventDefault();app.querySelector("[data-pin2]").click()}});
 $("#bkFile").addEventListener("change",ev=>{const f=ev.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const o=JSON.parse(rd.result);if(!o.cfg)throw 0;cfg=o.cfg;runs=o.runs||{};prods=o.prods||{};limp=o.limp||{};if(o.res)res=o.res;salvar();toast("Backup restaurado");render()}catch(e){toast("Arquivo de backup inválido")}};rd.readAsText(f);ev.target.value=""});
 (function(){const mt=location.hash.match(/[#&]c=([A-Za-z0-9-]+)/);if(mt){history.replaceState(null,"",location.pathname+location.search);if(SY.tok!==mt[1].toUpperCase()){SY.tok=mt[1].toUpperCase();SY.since=0;SY.err="";salvarSY()}}})();
-app.addEventListener("focusout",()=>{if(pendRender)setTimeout(()=>{if(pendRender&&!editando()){pendRender=false;render()}},300)});
+app.addEventListener("focusout",()=>{if(pendRender)setTimeout(()=>{if(pendRender&&!editando()&&podeRender()){pendRender=false;render()}},300)});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)sincronizar()});window.addEventListener("online",()=>sincronizar());
 setInterval(()=>{if(!document.hidden)sincronizar()},60000);setTimeout(sincronizar,800);
 render();
