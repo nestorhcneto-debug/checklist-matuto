@@ -37,6 +37,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .hdr-in{display:flex;align-items:center;gap:12px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1180px;margin:0 auto}
 .logo{width:46px;height:46px;border-radius:50%;flex:none;background:#0D0B0A;overflow:hidden}.logo img{width:100%;height:100%;object-fit:cover}
 .brand{min-width:0;flex:1}.brand b{font-family:var(--display);font-weight:400;font-size:1.2rem;display:block;line-height:1.1}
+.hs{letter-spacing:.04em;text-transform:none;font-weight:700;white-space:nowrap}.hs.ok{color:#7fd39a}.hs.bad{color:#ff9b8f}.hs.off{color:#ff9b8f}
 .brand small{font-size:.72rem;text-transform:uppercase;letter-spacing:.14em;opacity:.85;font-weight:700}
 .esc-btn{border:1.5px solid #F2E6D3;background:none;border-radius:99px;padding:7px 14px;font-weight:700;font-size:.85rem;color:#F2E6D3;white-space:nowrap;flex:none}
 .esc-btn:hover,.esc-btn[aria-current]{background:#F2E6D3;color:#0D0B0A}
@@ -174,7 +175,7 @@ button.st{cursor:pointer}
 <body>
 <header class="hdr"><div class="hdr-in">
  <div class="logo"><img src="emblema.jpg" alt="Logo Matuto da China"></div>
- <div class="brand"><b>Matuto da China</b><small>Rotinas da casa</small></div>
+ <div class="brand"><b>Matuto da China</b><small>Rotinas da casa <span id="hdrSync" class="hs"></span></small></div>
  <button class="esc-btn" id="escBtn">Escala de Folgas</button>
 </div></header>
 <main id="app"></main>
@@ -298,7 +299,7 @@ const SEC={hoje:"hoje",check:"hoje",rel:"hoje",prod:"prod",prel:"prod",limp:"lim
 function render(){const sec=SEC[view.n]||(view.n==="rel"?view.de:"");
  document.querySelectorAll("[data-nav]").forEach(b=>{if(b.dataset.nav===sec)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
  $("#escBtn").toggleAttribute("aria-current",view.n==="escala");
- $("#app").innerHTML=V[view.n]()}
+ $("#app").innerHTML=V[view.n]();if(typeof atualizarStatusSync==="function")atualizarStatusSync()}
 
 /* ================= Telas ================= */
 const V={};
@@ -310,7 +311,7 @@ V.hoje=function(){const dia=diaOp(),e=escalaDia(dia),w=semanaDoMes(dia),k=mesKey
  let h='<section class="stack"><div class="row"><div><p class="eyebrow">Dia de operação · '+(semanaDoMes(dia))+'ª semana do mês</p><h1>'+esc(dataLonga(dia))+'</h1></div>'+
   '<label class="tool"><span class="muted small">Ver tarefas de</span><select class="inp" id="quemSel">'+'<option value="">Toda a equipe</option>'+cfg.funcionarios.map(n=>'<option'+(n===quem?" selected":"")+'>'+esc(n)+'</option>').join("")+'</select></label></div>'+
   '<div class="row"><span><span class="big num">'+ok+'</span><span class="muted"> de '+total+' rotinas do dia concluídas</span></span><span class="muted num">'+pct+'%</span></div><div class="bar'+(pct<100?" mid":"")+'"><span style="width:'+pct+'%"></span></div></section>';
- const nab=abertasRecentes();if(nab)h+='<button class="line oco-alert" data-gooco><span class="lab"><b>'+nab+' ocorrência'+(nab>1?"s":"")+' em aberto</b><small>Observações, temperaturas e pendências dos últimos 7 dias</small></span><span class="muted">›</span></button>';
+ h+=cardConflitos();const nab=abertasRecentes();if(nab)h+='<button class="line oco-alert" data-gooco><span class="lab"><b>'+nab+' ocorrência'+(nab>1?"s":"")+' em aberto</b><small>Observações, temperaturas e pendências dos últimos 7 dias</small></span><span class="muted">›</span></button>';
  if(e&&e.feriado)h+='<div class="note info"><b>Hoje é feriado.</b>Quem trabalhar hoje ganha 1 folga extra, já marcada na escala.</div>';
  if(quem)h+=cardPessoa(quem,dia,w,k);
  // folgas
@@ -421,7 +422,7 @@ V.escala=function(){const ES=cfg.escala,ks=Object.keys(ES).sort();let km=view.k|
   c+='<div class="d'+(wd===1?" seg":"")+(has?" has":"")+(ds===hoje?" hoje":"")+(ed&&view.dia===d?" sel":"")+(!ed&&!L.length&&!CP.length&&!fer&&!fe&&wd!==1?" vz":"")+'"'+(ed?' data-eday="'+d+'"':"")+'><span class="wl">'+WS[wd]+'</span><span class="n">'+d+'</span>'+body+'</div>'}
  const resto=(7-(ini+dias)%7)%7;for(let i=0;i<resto;i++)c+='<div class="d out"></div>';c+='</div>';
  const res=eq?'<b>'+esc(eq)+'</b>: '+tot+' folga'+(tot===1?"":"s")+' além das segundas'+(cp?' + '+cp+' de compensação':'')+(dom.length?' · domingo'+(dom.length>1?"s ":" ")+dom.join(" e "):' · <b>sem domingo neste mês</b>')+'.':'Escala 5x2: segunda é fechado (folga de todos) e cada pessoa tem mais 1 folga na semana, com pelo menos 1 domingo no mês. Em azul, folgas de compensação de feriado.';
- let h='<button class="back" data-ir="hoje">‹ Hoje</button><div class="esc-head"><img src="logo.jpg" alt="Matuto da China"><div><p class="eyebrow">Escala de folgas</p><h1>Calendário · '+esc(m.nome)+'</h1></div></div>'+
+ let h=cardConflitos()+'<button class="back" data-ir="hoje">‹ Hoje</button><div class="esc-head"><img src="logo.jpg" alt="Matuto da China"><div><p class="eyebrow">Escala de folgas</p><h1>Calendário · '+esc(m.nome)+'</h1></div></div>'+
  '<div class="tool"><div class="mnav"><button class="btn sm sec" data-emes="'+(ks[ks.indexOf(km)-1]||"")+'"'+(ks.indexOf(km)>0?"":" disabled")+' aria-label="Mês anterior">‹</button><select class="inp" id="emesSel" aria-label="Mês">'+ks.map(k=>'<option value="'+k+'"'+(k===km?" selected":"")+'>'+esc(ES[k].nome)+'</option>').join("")+'</select><button class="btn sm sec" data-emes="'+(ks[ks.indexOf(km)+1]||"")+'"'+(ks.indexOf(km)<ks.length-1?"":" disabled")+' aria-label="Próximo mês">›</button></div>'+
  (ed?'<button class="btn sm pri" data-eclose>Concluir edição</button><button class="btn sm sec" data-enovo>+ Novo mês</button>':'<select class="inp" id="escSel" aria-label="Ver folgas de"><option value="">Todos</option>'+nomesEscala().map(n=>'<option'+(n===eq?" selected":"")+'>'+esc(n)+'</option>').join("")+'</select><button class="btn sm sec" data-gerir="eedit|">Editar escala</button>')+'</div>'+pinBox();
  if(ed){h+=editorDia(km,m,y,mo)+avisosEscala(km,m)}else h+='<div class="esc-res">'+res+'</div>';
@@ -523,7 +524,7 @@ let liberado=false;
 function pinBox(){if(!view.askPin)return"";return'<div class="card"><div class="body"><b>Área da gerência</b><p class="muted small" style="margin:0">Digite a senha para editar.</p><div class="rowbtn"><input class="inp" id="pin2" type="password" inputmode="numeric" placeholder="Senha" style="flex:1 1 140px"><button class="btn pri sm" data-pin2>Liberar</button><button class="btn ghost sm" data-pin2x>Cancelar</button></div></div></div>'}
 function gerir(alvo){const [n,k]=alvo.split("|");if(n==="eedit"){if(view.n!=="escala")view={n:"escala"};view.edit=true;view.dia=null;view.askPin=null;render();window.scrollTo(0,0);return}ir({n:n,k:k||view.k})}
 V.ajustes=function(){let h='<div><p class="eyebrow">Configuração</p><h1>Ajustes</h1></div>'+
- '<section class="card"><header><h2>WhatsApp da gerência</h2></header><div class="body"><label class="field"><span>Número com DDD</span><input class="inp" id="fone" inputmode="tel" placeholder="Ex.: 81 99999-0000" value="'+esc(cfg.fone)+'"></label><p class="muted small" style="margin:0">Os relatórios abrem direto nessa conversa.</p></div></section>'+cardSync();
+ '<section class="card"><header><h2>WhatsApp da gerência</h2></header><div class="body"><label class="field"><span>Número com DDD</span><input class="inp" id="fone" inputmode="tel" placeholder="Ex.: 81 99999-0000" value="'+esc(cfg.fone)+'"></label><p class="muted small" style="margin:0">Os relatórios abrem direto nessa conversa.</p></div></section>'+cardConflitos()+cardSync();
  if(!liberado)return h+'<section class="card"><header><h2>Área da gerência</h2></header><div class="body"><p class="muted" style="margin:0">Para alterar equipe, checklists, produção e cronograma de limpeza, digite a senha.</p><div class="rowbtn"><input class="inp" id="pin" type="password" inputmode="numeric" placeholder="Senha" style="flex:1 1 140px"><button class="btn pri sm" data-pin>Liberar</button></div></div></section>';
  h+='<div class="grid g2"><section class="card"><header><h2>Equipe</h2></header><div class="body"><p class="muted small" style="margin:0">'+cfg.funcionarios.length+' pessoas: '+esc(cfg.funcionarios.join(", "))+'</p><button class="btn sec sm" data-edfunc>Editar equipe</button></div></section>'+
  '<section class="card"><header><h2>Checklists</h2></header><div class="body">'+SETORES.map(s=>'<div class="rowbtn" style="align-items:center"><b style="flex:1 1 100%">'+s.nome+'</b>'+TURNOS.map(t=>'<button class="btn sec sm" data-editar="check|'+s.id+'|'+t.id+'">'+t.nome+' ('+lista(s.id,t.id).length+')</button>').join("")+'</div>').join("")+'</div></section>'+
@@ -574,6 +575,11 @@ function linhaPlanilha(t,k,v){
  return null}
 let syncBusy=false,syncTimer=null,pendRender=false;
 function syncAgendar(){if(!syncOn())return;clearTimeout(syncTimer);syncTimer=setTimeout(sincronizar,2500)}
+function cfgEditado(k,v){const s=JSON.stringify(v);if(k.indexOf("escala|")===0){const b=ESCALA[k.slice(7)];if(!b)return true;return s!==JSON.stringify(b)}if(k==="funcionarios")return s!==JSON.stringify(FUNC_PADRAO);return false}
+function difEscala(a,b){const D=[];for(let d=1;d<=31;d++){const f=m=>JSON.stringify([((m.folgas||{})[d]||[]).slice().sort(),((m.compensa||{})[d]||[]).slice().sort(),!!(m.feriados||{})[d]]);if(f(a)!==f(b))D.push(d)}return D}
+function cardConflitos(){const C=SY.conf||{},ids=Object.keys(C);if(!ids.length)return"";return ids.map(id=>{const k=id.slice(4),loc=C[id].v,nu=k.indexOf("escala|")===0?cfg.escala[k.slice(7)]:cfg[k];const nome=k.indexOf("escala|")===0?"Escala de "+((loc&&loc.nome)||k.slice(7)):"Equipe";
+ const dif=k.indexOf("escala|")===0&&nu?difEscala(loc,nu):[];
+ return'<div class="note warn"><b>'+esc(nome)+': este aparelho tinha uma versão diferente da que está online.</b>Quando ele foi conectado, ficou valendo a versão online. Escolha qual versão vale para todos os aparelhos.'+(dif.length?'<br><span class="small">Dias diferentes: '+dif.join(", ")+'.</span>':"")+'<div class="rowbtn" style="margin-top:8px"><button class="btn pri sm" data-cfusa="'+esc(id)+'">Usar a versão deste aparelho</button><button class="btn sec sm" data-cfnuvem="'+esc(id)+'">Manter a versão online</button></div></div>'}).join("")}
 function podeRender(){return["hoje","hist","limp","escala","rel","prel"].indexOf(view.n)>=0&&!view.edit&&!view.askPin&&!view.resolv&&!view.sign}
 function prodVazio(p){if(p.fim||(p.ocorr||"").trim()||(p.conf||"").trim())return false;return!Object.values(p.setores||{}).some(s=>Object.values(s.itens||{}).some(e=>Object.values(e||{}).some(v=>v===true||(v&&typeof v==="object")||(typeof v==="string"&&v.trim()))))}
 function editando(){const a=document.activeElement;return a&&app.contains(a)&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)}
@@ -587,6 +593,7 @@ async function sincronizar(){if(!syncOn()||syncBusy)return;syncBusy=true;
    if(hl===hr){if(hr)SY.sent[id]=hr;else delete SY.sent[id];return}
    const sujo=loc!==undefined&&SY.sent[id]!==hl;
    if(sujo&&!(prim&&x.t==="cfg"))return;
+   if(sujo&&cfgEditado(x.k,loc)){SY.conf=SY.conf||{};SY.conf[id]={v:loc,ts:Date.now()}}
    aplicarRec(x.t,x.k,x.v);if(hr)SY.sent[id]=hr;else delete SY.sent[id];mudou=true});
   SY.since=r.now;
   if(mudou){LS.set("mdc_cfg",cfg);LS.set("mdc_runs",runs);LS.set("mdc_prod",prods);LS.set("mdc_limp",limp);LS.set("mdc_res",res)}
@@ -605,11 +612,11 @@ async function sincronizar(){if(!syncOn()||syncBusy)return;syncBusy=true;
 function textoSync(){if(!syncOn())return'<span class="sy off">● Desligado</span> Os dados ficam só neste aparelho.';
  if(SY.err)return'<span class="sy bad">● '+esc(SY.err)+'</span>'+(SY.ult?' Última atualização às '+hhmm(SY.ult)+(ymd(new Date(SY.ult))!==ymd(new Date())?" de "+dataCurta(ymd(new Date(SY.ult))):"")+'.':"");
  return SY.ult?'<span class="sy ok">● Online</span> Atualizado às '+hhmm(SY.ult)+(ymd(new Date(SY.ult))!==ymd(new Date())?" de "+dataCurta(ymd(new Date(SY.ult))):"")+'.':'<span class="sy">● Conectando…</span>'}
-function atualizarStatusSync(){document.querySelectorAll("[data-systatus]").forEach(e=>e.innerHTML=textoSync())}
+function atualizarStatusSync(){document.querySelectorAll("[data-systatus]").forEach(e=>e.innerHTML=textoSync());const h=document.getElementById("hdrSync");if(h){const c=!syncOn()?"off":SY.err?"bad":SY.ult?"ok":"";h.className="hs "+c;h.textContent=!syncOn()?"· ● só neste aparelho":SY.err?"· ● sem conexão":"· ● online"}}
 function cardSync(){return'<section class="card"><header><h2>Acesso online</h2></header><div class="body"><p style="margin:0" data-systatus>'+textoSync()+'</p>'+
  (syncOn()?'<p class="muted small" style="margin:0">Checklists, produção, limpeza, escala e ocorrências vão para a planilha Google da gerência e aparecem em todos os aparelhos conectados.</p><div class="rowbtn"><button class="btn sec sm" data-syagora>Atualizar agora</button>'+(SY.planilha?'<a class="btn sec sm" href="'+esc(SY.planilha)+'" target="_blank" rel="noopener">Abrir planilha</a>':"")+(liberado?'<button class="btn ghost sm" data-syoff>Desconectar este aparelho</button>':"")+'</div>':
  '<p class="muted small" style="margin:0">Conecte para ver os checklists e as observações de qualquer lugar. Digite o código de acesso da gerência.</p><div class="rowbtn"><input class="inp" id="syTok" placeholder="Código de acesso" autocapitalize="characters" style="flex:1 1 180px"><button class="btn pri sm" data-syon>Conectar</button></div>')+'</div></section>'}
-function conectar(tok){SY.tok=tok.trim().toUpperCase();SY.since=0;SY.err="";SY.ult=0;salvarSY();sincronizar().then(()=>{if(SY.err)toast(SY.err);else toast("Conectado");render()})}
+function conectar(tok){SY.off=false;SY.tok=tok.trim().toUpperCase();SY.since=0;SY.err="";SY.ult=0;salvarSY();sincronizar().then(()=>{if(SY.err)toast(SY.err);else toast("Conectado");render()})}
 
 /* ================= Ocorrências ================= */
 function problemas(a,b){const hoje=diaOp(),P=[];const dias0=Object.keys(runs).map(k=>k.slice(0,10)).sort();const inicio=dias0[0]||hoje;
@@ -660,9 +667,11 @@ app.addEventListener("click",ev=>{const b=ev.target.closest("button,[data-rel],[
  if("reabrir" in d){const r=runs[view.k];r.status="andamento";r.fim=null;delete r.lista;salvar();ir({n:"check",k:view.k});return}
  if(d.rel){ir({n:"rel",k:d.rel,de:"hist"});return}
  if("syon" in d){const v=$("#syTok").value;if(!v.trim()){toast("Digite o código de acesso");return}conectar(v);return}
- if("syoff" in d){SY={sent:{},dev:SY.dev};salvarSY();render();toast("Aparelho desconectado");return}
+ if("syoff" in d){SY={sent:{},dev:SY.dev,off:true};salvarSY();render();toast("Aparelho desconectado");return}
  if("syagora" in d){toast("Atualizando…");sincronizar().then(()=>{toast(SY.err||"Tudo atualizado");render()});return}
  if(d.of){view.of=d.of;render();return}
+ if(d.cfusa){const c=(SY.conf||{})[d.cfusa];if(c){aplicarRec("cfg",d.cfusa.slice(4),c.v);delete SY.conf[d.cfusa];salvarSY();salvar();render();toast("Versão deste aparelho enviada para todos")}return}
+ if(d.cfnuvem){if(SY.conf)delete SY.conf[d.cfnuvem];salvarSY();render();toast("Mantida a versão online");return}
  if(d.resolver){view.resolv=d.resolver;render();const s=$("#rQuem");if(s)s.focus();return}
  if("resx" in d){view.resolv=null;render();return}
  if(d.resok){const q=$("#rQuem").value;if(!q){toast("Escolha quem resolveu");return}res[d.resok]={quem:q,ts:Date.now(),nota:$("#rNota").value.trim()};view.rq=q;view.resolv=null;salvar();render();toast("Marcado como resolvido");return}
